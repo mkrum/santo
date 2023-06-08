@@ -76,6 +76,34 @@ class DataEntry(Entry):
 class Game:
     entries: List[Entry]
 
+    def _get_entries(self, data_type: Entry) -> List[Entry]:
+        return list(filter(lambda x: isinstance(x, data_type), self.entries))
+
+    def get_home_team(self) -> str:
+        infos = self._get_entries(InfoEntry)
+        home_team = list(filter(lambda info: info.key == "hometeam", infos))
+        assert len(home_team) == 1
+        return home_team[0].value
+
+    def get_away_team(self) -> str:
+        infos = self._get_entries(InfoEntry)
+        away_team = list(filter(lambda info: info.key == "visteam", infos))
+        assert len(away_team) == 1
+        return away_team[0].value
+
+    def box_score(self):
+        total_plays = self._get_entries(PlayEntry)
+        for inning in range(1, 10):
+            plays = list(filter(lambda x: x.inning == inning, total_plays))
+
+            home_team_plays = []
+            away_team_plays = []
+            for p in plays:
+                if p.is_home_team:
+                    home_team_plays.append(p)
+                else:
+                    away_team_plays.append(p)
+            breakpoint()
 
 def load_evn(file_name: str) -> List[Game]:
     with open(file_name, "r") as input_file:
@@ -121,15 +149,10 @@ def split_into_games(entries: List[Entry]) -> List[Game]:
     for e in entries:
         if isinstance(e, IdEntry) and len(game_buffer) > 0:
             games.append(Game(game_buffer))
+            game_buffer = []
         game_buffer.append(e)
 
     if len(game_buffer) > 0:
         games.append(Game(game_buffer))
 
     return games
-
-
-if __name__ == "__main__":
-
-    games = load_evn(sys.argv[1])
-    print(len(games))
