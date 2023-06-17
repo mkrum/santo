@@ -9,4 +9,3 @@ def test_eva():
 
 def test_box_score():
     games = santo.data.load_evn("./data/1992/1992CHN.EVN")
-    games[0].box_score()

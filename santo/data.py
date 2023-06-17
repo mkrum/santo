@@ -91,6 +91,9 @@ class Game:
         assert len(away_team) == 1
         return away_team[0].value
 
+    def get_plays(self) -> List[PlayEntry]: 
+        return self._get_entries(PlayEntry)
+
     def box_score(self):
         total_plays = self._get_entries(PlayEntry)
         for inning in range(1, 10):
@@ -103,7 +106,6 @@ class Game:
                     home_team_plays.append(p)
                 else:
                     away_team_plays.append(p)
-            breakpoint()
 
 def load_evn(file_name: str) -> List[Game]:
     with open(file_name, "r") as input_file:

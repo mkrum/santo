@@ -1,1 +1,1 @@
-# santo
+# Santo: A Baseball Language Model
