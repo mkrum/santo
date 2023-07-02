@@ -1,7 +1,9 @@
 
+import glob
 import pandas as pd
 
-from santo.game import GameState, parse
+from santo.parse import parse
+from santo.game import GameState
 from santo.utils import load_game_log
 import santo.data
 
@@ -20,14 +22,16 @@ def test_strikeout():
 
 def test_game_log():
     data = load_game_log("./data/1992/gl1992.txt")
-    games = santo.data.load_evn("./data/1992/1992CHN.EVN")
-    game = games[0]
-    plays = game.get_plays()
-
-    state = GameState()
-
-    for p in plays:
-        state = parse(state, p.play)
-
-    print(state)
+    
+    all_files = glob.glob("./data/1992/*.EV*")
+    for f in all_files:
+        games = santo.data.load_evn(f)
+    
+        for game in games:
+            plays = game.get_plays()
+    
+            state = GameState()
+    
+            for p in plays:
+                state = parse(state, p.play)
     

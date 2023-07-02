@@ -71,6 +71,10 @@ class DataEntry(Entry):
     player_id: str
     value: str
 
+@dataclass
+class BatterAdjustmentEntry(Entry):
+    player_id: str
+    hand: str
 
 @dataclass
 class Game:
@@ -139,7 +143,11 @@ def load_entries(data: List[List[str]]) -> List[Entry]:
             data_type = CommentaryEntry
         elif type_name == "data":
             data_type = CommentaryEntry
-
+        elif type_name == "badj":
+            data_type = BatterAdjustmentEntry
+        else:
+            raise ValueError(f"Unrecognized type name {type_name}")
+         
         entries.append(data_type.from_entry(d))
 
     return entries
