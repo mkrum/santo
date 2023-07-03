@@ -117,7 +117,6 @@ def parse_event_string(play_str: str) -> Event:
         raise ValueError(f"Syntax error parsing {play_str}")
 
     event = event_type.from_string(play_str)
-    print(event)
     return event
 
 

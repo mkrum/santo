@@ -9,13 +9,14 @@ class RunnerAdvance:
     from_base: Base
     to_base: Base
     is_out: bool
+    explicit: bool = False
 
     @classmethod
     def from_string(cls, raw_string: str) -> "RunnerAdvance":
         from_base = Base.from_short_string(raw_string[0])
         to_base = Base.from_short_string(raw_string[2])
         is_out = raw_string[1] != "-"
-        return cls(from_base, to_base, is_out)
+        return cls(from_base, to_base, is_out, explicit=True)
 
     def __call__(self, state: GameState) -> GameState:
         new_state = state
@@ -46,15 +47,18 @@ def simplify_runner_advances(advances: List[RunnerAdvance]) -> List[RunnerAdvanc
     for k, same_advances in unique_bases.items():
 
         # Some cases an event might lead us to believe a runner is out, when
-        # they are safe. In these cases, we default to the runner advancement
-        all_out = all([x.is_out for x in same_advances])
-        if not all_out:
-            same_advances = list(filter(lambda x: not x.is_out, same_advances))
+        # they are safe. In these cases, we default to the explicit runner
+        # advancement notations
+        all_implicit = all([not x.explicit for x in same_advances])
+
+        if not all_implicit:
+            same_advances = list(filter(lambda x: x.explicit, same_advances))
 
         same_advances = list(
             sorted(same_advances, key=lambda x: x.to_base.value, reverse=True)
         )
         simplified_advances.append(same_advances[0])
+
 
     # Move lead runners first
     ordered_advances = list(
@@ -83,7 +87,7 @@ class Event:
         runners = self.get_runners()
 
         if other_runners:
-            runners = simplify_runner_advances(other_runners + runners)
+            runners = simplify_runner_advances(runners + other_runners)
 
         for advance_runners in runners:
             new_state = advance_runners(new_state)
@@ -135,7 +139,6 @@ class StrikeOutEvent(Event):
 class OutEvent(Event):
     
     def get_players_out(self) -> List[RunnerAdvance]:
-        players_out = set()
         players_out = set([RunnerAdvance(Base.BATTER, Base.FIRST, True)])
 
         if "(" in self.raw_string:
