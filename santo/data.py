@@ -3,6 +3,7 @@ from typing import List
 
 import dataclasses
 from dataclasses import dataclass
+import datetime
 
 
 @dataclass
@@ -24,8 +25,8 @@ class CommentaryEntry(Entry):
 @dataclass
 class PlayEntry(Entry):
     inning: int
-    is_home_team: bool
-    player_at_player: str
+    is_home_team: int
+    player_at_plate: str
     count: str
     pitches: str
     play: str
@@ -71,10 +72,12 @@ class DataEntry(Entry):
     player_id: str
     value: str
 
+
 @dataclass
 class BatterAdjustmentEntry(Entry):
     player_id: str
     hand: str
+
 
 @dataclass
 class Game:
@@ -83,33 +86,38 @@ class Game:
     def _get_entries(self, data_type: Entry) -> List[Entry]:
         return list(filter(lambda x: isinstance(x, data_type), self.entries))
 
-    def get_home_team(self) -> str:
+    @property
+    def home_team(self) -> str:
         infos = self._get_entries(InfoEntry)
         home_team = list(filter(lambda info: info.key == "hometeam", infos))
         assert len(home_team) == 1
         return home_team[0].value
 
-    def get_away_team(self) -> str:
+    @property
+    def away_team(self) -> str:
         infos = self._get_entries(InfoEntry)
         away_team = list(filter(lambda info: info.key == "visteam", infos))
         assert len(away_team) == 1
         return away_team[0].value
 
-    def get_plays(self) -> List[PlayEntry]: 
+    def get_plays(self) -> List[PlayEntry]:
         return self._get_entries(PlayEntry)
 
-    def box_score(self):
-        total_plays = self._get_entries(PlayEntry)
-        for inning in range(1, 10):
-            plays = list(filter(lambda x: x.inning == inning, total_plays))
+    @property
+    def date(self) -> datetime.datetime:
+        infos = self._get_entries(InfoEntry)
+        date = list(filter(lambda info: info.key == "date", infos))
+        assert len(date) == 1
+        date_str = date[0].value
+        return datetime.datetime.strptime(date_str, "%Y/%m/%d").date()
 
-            home_team_plays = []
-            away_team_plays = []
-            for p in plays:
-                if p.is_home_team:
-                    home_team_plays.append(p)
-                else:
-                    away_team_plays.append(p)
+    @property
+    def game_number(self) -> int:
+        infos = self._get_entries(InfoEntry)
+        number = list(filter(lambda info: info.key == "number", infos))
+        assert len(number) == 1
+        return int(number[0].value)
+
 
 def load_evn(file_name: str) -> List[Game]:
     with open(file_name, "r") as input_file:
@@ -147,7 +155,7 @@ def load_entries(data: List[List[str]]) -> List[Entry]:
             data_type = BatterAdjustmentEntry
         else:
             raise ValueError(f"Unrecognized type name {type_name}")
-         
+
         entries.append(data_type.from_entry(d))
 
     return entries

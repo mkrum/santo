@@ -1,7 +1,7 @@
-
 from santo.events import *
 from santo.game import GameState
 import re
+
 
 def parse_event_string(play_str: str) -> Event:
     events_strs = play_str.split("/")
@@ -29,7 +29,7 @@ def parse_event_string(play_str: str) -> Event:
         event_type = HitEvent
 
     # Singles, Doubles, Tripples
-    elif re.match(r"S[1-9]?(\/.*)?", play_str):
+    elif re.match(r"S[^B][1-9]?(\/.*)?", play_str):
         event_type = HitEvent
 
     elif re.match(r"D[1-9]?(\/.*)?", play_str):
@@ -55,9 +55,9 @@ def parse_event_string(play_str: str) -> Event:
         event_type = FoulBallErrorEvent
 
     # Some kind of home run
-    elif re.match(r"H(R)?(\/.*)?", play_str):
+    elif re.match(r"H[^P](R)?(\/.*)?", play_str):
         event_type = HomeRunEvent
-    
+
     # Hit By Pitch
     elif re.match(r"HP(\/.*)?", play_str):
         event_type = HitByPitchEvent
@@ -85,7 +85,7 @@ def parse_event_string(play_str: str) -> Event:
     # stealing
     elif re.match(r"DI(\.[B,1-3][-,X][B,1-3])*;?", play_str):
         event_type = DefensiveIndifferenceEvent
-    
+
     # Runner Advance not covered by other things
     elif re.match(r"OA(\.[B,1-3][-,X][B,1-3])*;?", play_str):
         event_type = RunnersAdvanceEvent
@@ -97,6 +97,9 @@ def parse_event_string(play_str: str) -> Event:
     # Wild pitch
     elif re.match(r"WP(\.[B,1-3][-,X][B,1-3])*;?", play_str):
         event_type = WildPitchEvent
+
+    elif re.match(r"SB[1-9]?(\/.*)?", play_str):
+        event_type = StolenBaseEvent
 
     # Caught Stealing
     elif re.match(r"CS[2,3,H]\(.*\)(\.[B,1-3][-,X][B,1-3])*;?", play_str):
@@ -114,6 +117,7 @@ def parse_event_string(play_str: str) -> Event:
         raise ValueError(f"Syntax error parsing {play_str}")
 
     event = event_type.from_string(play_str)
+    print(event)
     return event
 
 
