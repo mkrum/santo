@@ -20,6 +20,12 @@ class RunnerAdvance:
 
     def __call__(self, state: GameState) -> GameState:
         new_state = state
+
+        # Sometimes more than three runners are recorded as out. In this case,
+        # we want to just stop counting to not trigger any errors
+        if new_state.outs == 3:
+            return new_state
+
         if self.is_out:
             new_state = new_state.add_out(self.from_base)
         else:
@@ -282,13 +288,19 @@ class WildPitchEvent(Event):
 @dataclass(frozen=True)
 class StolenBaseEvent(Event):
     def __call__(self, state: GameState) -> GameState:
-        stolen_base = self.raw_string[2]
+        sb_strings = self.raw_string.split(";")
 
-        if stolen_base == "2":
-            advance = RunnerAdvance(Base.FIRST, Base.SECOND, False)
-        elif stolen_base == "3":
-            advance = RunnerAdvance(Base.SECOND, Base.THIRD, False)
-        elif stolen_base == "H":
-            advance = RunnerAdvance(Base.THIRD, Base.HOME, False)
+        advances = []
+        for sb_string in sb_strings:
+            stolen_base = sb_string[2]
 
-        return self.handle_runners(state, [advance])
+            if stolen_base == "2":
+                advance = RunnerAdvance(Base.FIRST, Base.SECOND, False)
+            elif stolen_base == "3":
+                advance = RunnerAdvance(Base.SECOND, Base.THIRD, False)
+            elif stolen_base == "H":
+                advance = RunnerAdvance(Base.THIRD, Base.HOME, False)
+
+            advances.append(advance)
+
+        return self.handle_runners(state, advances)
