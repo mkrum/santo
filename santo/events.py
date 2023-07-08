@@ -143,6 +143,9 @@ class OutEvent(Event):
             marked = list(
                 map(lambda x: x.split(")")[0], self.raw_string.split("(")[1:])
             )
+
+            # Sometimes these also notify whether the run was earned or not
+            marked = list(filter(lambda x: not (x in ["RBI", "UR"]), marked))
             runners = list(map(Base.from_short_string, marked))
 
             for r in runners:
@@ -209,7 +212,7 @@ class ErrorEvent(Event):
 
 
 @dataclass(frozen=True)
-class IntentionalWalkEvent(Event):
+class IntentionalWalkEvent(WalkEvent):
     ...
 
 

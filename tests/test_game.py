@@ -38,6 +38,8 @@ def check_correctness(data, game):
             logging.debug("-" * 10)
 
         logging.debug(p.play)
+        logging.debug(p.inning == state.inning)
+        logging.debug(bool(p.is_home_team) == state.home_team_up)
         assert p.inning == state.inning
         assert bool(p.is_home_team) == state.home_team_up
         state = parse(state, p.play)
@@ -52,7 +54,7 @@ def check_correctness(data, game):
 
 
 def test_game_log():
-    logging.getLogger().setLevel(logging.DEBUG)
+    #logging.getLogger().setLevel(logging.DEBUG)
 
     data = load_game_log("./data/1992/gl1992.txt")
     all_files = glob.glob("./data/1992/*.EV*")
