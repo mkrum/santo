@@ -54,8 +54,6 @@ def check_correctness(data, game):
 
 
 def test_game_log():
-    #logging.getLogger().setLevel(logging.DEBUG)
-
     data = load_game_log("./data/1992/gl1992.txt")
     all_files = glob.glob("./data/1992/*.EV*")
 
@@ -63,7 +61,11 @@ def test_game_log():
         games = santo.data.load_evn(f)
 
         for game in games:
-            check_correctness(data, game)
+            try:
+                check_correctness(data, game)
+            except Exception as e:
+                logging.getLogger().setLevel(logging.DEBUG)
+                check_correctness(data, game)
 
 
 def test_game_log_percent():

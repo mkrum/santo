@@ -74,6 +74,10 @@ def parse_event_string(play_str: str) -> Event:
     elif re.match(r"I(W)?(\+.*)?(\/.*)?", play_str):
         event_type = IntentionalWalkEvent
 
+    # Wild pitch
+    elif re.match(r"WP(\.[B,1-3][-,X][B,1-3])*;?", play_str):
+        event_type = WildPitchEvent
+
     # Normal Walk
     elif re.match(r"W(\+.*)?(\/.*)?", play_str):
         event_type = WalkEvent
@@ -94,10 +98,6 @@ def parse_event_string(play_str: str) -> Event:
     # Passed Ball
     elif re.match(r"PB(\.[B,1-3][-,X][B,1-3])*;?", play_str):
         event_type = PassedBallEvent
-
-    # Wild pitch
-    elif re.match(r"WP(\.[B,1-3][-,X][B,1-3])*;?", play_str):
-        event_type = WildPitchEvent
 
     elif re.match(r"SB[1-9]?(\/.*)?", play_str):
         event_type = StolenBaseEvent

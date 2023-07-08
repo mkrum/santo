@@ -128,6 +128,8 @@ class StrikeOutEvent(Event):
             other_event = self.raw_string.split("+")[1]
             if other_event[:2] == "CS":
                 other_event = CaughtStealingEvent.from_string(other_event)
+            elif other_event[:2] == "SB":
+                other_event = StolenBaseEvent.from_string(other_event)
             return other_event(new_state)
         else:
             return self.handle_runners(new_state)
@@ -144,8 +146,10 @@ class OutEvent(Event):
                 map(lambda x: x.split(")")[0], self.raw_string.split("(")[1:])
             )
 
-            # Sometimes these also notify whether the run was earned or not
-            marked = list(filter(lambda x: not (x in ["RBI", "UR"]), marked))
+            # Sometimes these also notify whether the run was earned or not or
+            # have other, strange markings
+            marked = list(filter(lambda x: (x in ["B", "1", "2", "3", "H"]), marked))
+
             runners = list(map(Base.from_short_string, marked))
 
             for r in runners:
@@ -233,7 +237,16 @@ class CaughtStealingEvent(Event):
 
 @dataclass(frozen=True)
 class PickedOffEvent(Event):
-    ...
+    def __call__(self, state: GameState) -> GameState:
+        pickoff_base = self.raw_string[2]
+
+        if pickoff_base == "1":
+            advance = RunnerAdvance(Base.FIRST, Base.FIRST, True)
+        elif pickoff_base == "2":
+            advance = RunnerAdvance(Base.SECOND, Base.SECOND, True)
+        elif pickoff_base == "3":
+            advance = RunnerAdvance(Base.THIRD, Base.THIRD, True)
+        return self.handle_runners(state, [advance])
 
 
 @dataclass(frozen=True)
@@ -258,6 +271,11 @@ class FieldersChoiceEvent(Event):
 
 @dataclass(frozen=True)
 class PickedOffCaughtStealingEvent(Event):
+    ...
+
+
+@dataclass(frozen=True)
+class WildPitchEvent(Event):
     ...
 
 
