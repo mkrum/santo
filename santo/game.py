@@ -80,30 +80,16 @@ class GameState:
         new_state = new_state.empty_bases()
         return new_state
 
-    def force_advance(self) -> "GameState":
-        new_bases = self.bases
+    def force_advance(self, base: Base) -> "GameState":
+        # If there is a runner on the base we are trying to move to, first move
+        # that runner
 
-        new_runs = 0
-        if not new_bases[Base.FIRST]:
-            new_bases = new_bases.set(Base.FIRST, True)
-        elif new_bases[Base.FIRST] and not (
-            new_bases[Base.SECOND] or new_bases[Base.THIRD]
-        ):
-            new_bases = new_bases.set(Base.FIRST, True)
-            new_bases = new_bases.set(Base.SECOND, True)
-        elif (
-            new_bases[Base.FIRST]
-            and new_bases[Base.SECOND]
-            and not new_bases[Base.THIRD]
-        ):
-            new_bases = new_bases.set(Base.FIRST, True)
-            new_bases = new_bases.set(Base.SECOND, True)
-            new_bases = new_bases.set(Base.THIRD, True)
-        elif new_bases[Base.FIRST] and new_bases[Base.SECOND] and new_bases[Base.THIRD]:
-            new_runs += 1
+        new_state = self
+        if self.bases[base.next_base()]:
+            new_state = self.force_advance(base.next_base())
 
-        new_state = self.add_runs(new_runs)
-        new_state = replace(new_state, bases=new_bases)
+        new_state = new_state.remove_runner(base)
+        new_state = new_state.add_runner(base.next_base())
         return new_state
 
     def remove_runner(self, base: Base) -> "GameState":

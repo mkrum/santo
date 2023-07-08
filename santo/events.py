@@ -45,7 +45,6 @@ def simplify_runner_advances(advances: List[RunnerAdvance]) -> List[RunnerAdvanc
 
     simplified_advances = []
     for k, same_advances in unique_bases.items():
-
         # Some cases an event might lead us to believe a runner is out, when
         # they are safe. In these cases, we default to the explicit runner
         # advancement notations
@@ -58,7 +57,6 @@ def simplify_runner_advances(advances: List[RunnerAdvance]) -> List[RunnerAdvanc
             sorted(same_advances, key=lambda x: x.to_base.value, reverse=True)
         )
         simplified_advances.append(same_advances[0])
-
 
     # Move lead runners first
     ordered_advances = list(
@@ -123,11 +121,10 @@ class UnionEvent:
 
 @dataclass(frozen=True)
 class StrikeOutEvent(Event):
-
     def __call__(self, state: GameState) -> GameState:
         new_state = state.add_out(Base.BATTER)
 
-        if len(self.raw_string) > 1 and self.raw_string[1] == '+':
+        if len(self.raw_string) > 1 and self.raw_string[1] == "+":
             other_event = self.raw_string.split("+")[1]
             if other_event[:2] == "CS":
                 other_event = CaughtStealingEvent.from_string(other_event)
@@ -135,15 +132,17 @@ class StrikeOutEvent(Event):
         else:
             return self.handle_runners(new_state)
 
+
 @dataclass(frozen=True)
 class OutEvent(Event):
-    
     def get_players_out(self) -> List[RunnerAdvance]:
         players_out = set([RunnerAdvance(Base.BATTER, Base.FIRST, True)])
 
         if "(" in self.raw_string:
             # TODO: do this right
-            marked = list(map(lambda x: x.split(')')[0], self.raw_string.split("(")[1:]))
+            marked = list(
+                map(lambda x: x.split(")")[0], self.raw_string.split("(")[1:])
+            )
             runners = list(map(Base.from_short_string, marked))
 
             for r in runners:
@@ -162,12 +161,13 @@ class OutEvent(Event):
 @dataclass(frozen=True)
 class WalkEvent(Event):
     def __call__(self, state: GameState) -> GameState:
-        return state.force_advance()
+        return state.force_advance(Base.BATTER)
+
 
 @dataclass(frozen=True)
 class HitByPitchEvent(Event):
     def __call__(self, state: GameState) -> GameState:
-        return state.force_advance()
+        return state.force_advance(Base.BATTER)
 
 
 @dataclass(frozen=True)

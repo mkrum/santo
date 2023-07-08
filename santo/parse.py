@@ -1,5 +1,6 @@
 from santo.events import *
 from santo.game import GameState
+import logging
 import re
 
 
@@ -117,6 +118,7 @@ def parse_event_string(play_str: str) -> Event:
         raise ValueError(f"Syntax error parsing {play_str}")
 
     event = event_type.from_string(play_str)
+    logging.debug(event)
     return event
 
 
