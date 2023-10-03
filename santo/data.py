@@ -118,6 +118,13 @@ class Game:
         assert len(number) == 1
         return int(number[0].value)
 
+    @property
+    def game_id(self) -> str:
+        ids = self._get_entries(IdEntry)
+        assert len(ids) == 1
+        id_ = ids[0].id_
+        return id_
+
 
 def load_evn(file_name: str) -> List[Game]:
     with open(file_name, "r") as input_file:

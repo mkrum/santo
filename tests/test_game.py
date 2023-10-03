@@ -4,6 +4,7 @@ import pandas as pd
 from santo.parse import parse
 from santo.game import GameState
 from santo.utils import load_game_log
+from santo.tests import check_correctness
 import santo.data
 import logging
 
@@ -20,39 +21,6 @@ def test_strikeout():
     state = parse(state, "K")
 
 
-def check_correctness(data, game):
-    game_entry = data[
-        (data["HomeTeam"] == game.home_team)
-        & (data["VisitingTeam"] == game.away_team)
-        & (data["Date"] == int(game.date.strftime("%Y%m%d")))
-        & (data["GameNumber"] == game.game_number)
-    ]
-    plays = game.get_plays()
-
-    state = GameState()
-
-    current_inning = 0
-    for p in plays:
-        if p.inning != current_inning:
-            current_inning = p.inning
-            logging.debug("-" * 10)
-
-        logging.debug(p.play)
-        logging.debug(p.inning == state.inning)
-        logging.debug(bool(p.is_home_team) == state.home_team_up)
-        assert p.inning == state.inning
-        assert bool(p.is_home_team) == state.home_team_up
-        state = parse(state, p.play)
-        logging.debug(state)
-
-    sim_outcome = (state.score["home"], state.score["away"])
-    real_outcome = (
-        int(game_entry["HomeScore"]),
-        int(game_entry["VisitingScore"]),
-    )
-    assert sim_outcome == real_outcome
-
-
 def test_game_log():
     data = load_game_log("./data/1992/gl1992.txt")
     all_files = glob.glob("./data/1992/*.EV*")
@@ -62,9 +30,11 @@ def test_game_log():
 
         for game in games:
             try:
-                check_correctness(data, game)
-            except Exception as e:
+                assert check_correctness(data, game)
+            except:
                 logging.getLogger().setLevel(logging.DEBUG)
+                print(game.game_id)
+                exit()
                 check_correctness(data, game)
 
 
@@ -81,9 +51,8 @@ def test_game_log_percent():
         total += len(games)
 
         for game in games:
-            try:
-                check_correctness(data, game)
-            except:
+            if not check_correctness(data, game):
                 failure += 1.0
+
     success_rate = 1.0 - (failure / total)
     print(round(100.0 * success_rate, 2))
