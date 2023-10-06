@@ -1,7 +1,9 @@
+import re
+from typing import List, Set
+from dataclasses import dataclass
+
 from santo.utils import Base
 from santo.game import GameState
-from dataclasses import dataclass
-from typing import List, Set
 
 
 @dataclass(frozen=True)
@@ -15,7 +17,14 @@ class RunnerAdvance:
     def from_string(cls, raw_string: str) -> "RunnerAdvance":
         from_base = Base.from_short_string(raw_string[0])
         to_base = Base.from_short_string(raw_string[2])
+
         is_out = raw_string[1] != "-"
+
+        modifer_strings = re.findall(r"\((.*?)\)", raw_string)
+
+        if any([("E" in m) for m in modifer_strings]):
+            is_out = False
+
         return cls(from_base, to_base, is_out, explicit=True)
 
     def __call__(self, state: GameState) -> GameState:
@@ -132,10 +141,14 @@ class StrikeOutEvent(Event):
 
         if len(self.raw_string) > 1 and self.raw_string[1] == "+":
             other_event = self.raw_string.split("+")[1]
+
+            assert other_event[:2] in ["CS", "SB"], f"Unkown event {other_event}"
+
             if other_event[:2] == "CS":
                 other_event = CaughtStealingEvent.from_string(other_event)
             elif other_event[:2] == "SB":
                 other_event = StolenBaseEvent.from_string(other_event)
+
             return other_event(new_state)
         else:
             return self.handle_runners(new_state)
@@ -195,6 +208,7 @@ class HitEvent(Event):
 
     def __call__(self, state: GameState) -> GameState:
         hit_type = self.hit_type
+        assert hit_type in ["S", "D", "T"], f"Unkown hit type {hit_type}"
         if hit_type == "S":
             advance = RunnerAdvance(Base.BATTER, Base.FIRST, False)
         elif hit_type == "D":

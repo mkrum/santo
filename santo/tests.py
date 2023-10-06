@@ -21,11 +21,20 @@ def check_correctness(data, game):
             logging.debug("-" * 10)
 
         logging.debug(p.play)
-        logging.debug(p.inning == state.inning)
-        logging.debug(bool(p.is_home_team) == state.home_team_up)
-        assert p.inning == state.inning
-        assert bool(p.is_home_team) == state.home_team_up
-        state = parse(state, p.play)
+        logging.debug(f"Innings match {p.inning == state.inning}")
+        logging.debug(f"At bat matches {bool(p.is_home_team) == state.home_team_up}")
+
+        if p.inning != state.inning:
+            return False
+        if bool(p.is_home_team) != state.home_team_up:
+            return False
+
+        try:
+            state = parse(state, p.play)
+        except AssertionError as e:
+            logging.debug(e)
+            return False
+
         logging.debug(state)
 
     sim_outcome = (state.score["home"], state.score["away"])
