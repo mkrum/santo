@@ -145,7 +145,12 @@ class StrikeOutEvent(Event):
         if len(self.raw_string) > 1 and self.raw_string[1] == "+":
             other_event = self.raw_string.split("+")[1]
 
-            assert other_event[:2] in ["CS", "SB", "WP"], f"Unkown event {other_event}"
+            assert other_event[:2] in [
+                "CS",
+                "SB",
+                "WP",
+                "PB",
+            ], f"Unkown strikeout event {other_event}"
 
             if other_event[:2] == "CS":
                 other_event = CaughtStealingEvent.from_string(other_event)
@@ -153,6 +158,8 @@ class StrikeOutEvent(Event):
                 other_event = StolenBaseEvent.from_string(other_event)
             elif other_event[:2] == "WP":
                 other_event = WildPitchEvent.from_string(other_event)
+            elif other_event[:2] == "PB":
+                other_event = PassedBallEvent.from_string(other_event)
 
             return other_event(new_state)
         else:
