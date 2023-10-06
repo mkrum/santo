@@ -150,6 +150,7 @@ class StrikeOutEvent(Event):
                 "SB",
                 "WP",
                 "PB",
+                "OA",
             ], f"Unkown strikeout event {other_event}"
 
             if other_event[:2] == "CS":
@@ -160,6 +161,8 @@ class StrikeOutEvent(Event):
                 other_event = WildPitchEvent.from_string(other_event)
             elif other_event[:2] == "PB":
                 other_event = PassedBallEvent.from_string(other_event)
+            elif other_event[:2] == "OA":
+                other_event = OtherAdvanceEvent.from_string(other_event)
 
             return other_event(new_state)
         else:
@@ -211,6 +214,7 @@ class WalkEvent(Event):
                 "SB",
                 "WP",
                 "PB",
+                "OA",
             ], f"Unkown walk event {other_event}"
 
             if other_event[:2] == "CS":
@@ -221,6 +225,8 @@ class WalkEvent(Event):
                 other_event = WildPitchEvent.from_string(other_event)
             elif other_event[:2] == "PB":
                 other_event = PassedBallEvent.from_string(other_event)
+            elif other_event[:2] == "OA":
+                other_event = OtherAdvanceEvent.from_string(other_event)
 
             return other_event(new_state)
         else:
@@ -366,4 +372,9 @@ class StolenBaseEvent(Event):
 
 @dataclass(frozen=True)
 class DefensiveIndifferenceEvent(Event):
+    ...
+
+
+@dataclass(frozen=True)
+class OtherAdvanceEvent(Event):
     ...
