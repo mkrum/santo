@@ -199,9 +199,11 @@ class OutEvent(Event):
 @dataclass(frozen=True)
 class WalkEvent(Event):
     def __call__(self, state: GameState) -> GameState:
-        new_state = state.force_advance(Base.BATTER)
+        new_state = state
 
         if len(self.raw_string) > 1 and self.raw_string[1] == "+":
+            new_state = state.force_advance(Base.BATTER)
+
             other_event = self.raw_string.split("+")[1]
 
             assert other_event[:2] in [
@@ -222,7 +224,8 @@ class WalkEvent(Event):
 
             return other_event(new_state)
         else:
-            return new_state
+            new_state = self.handle_runners(new_state)
+            return new_state.force_advance(Base.BATTER)
 
 
 @dataclass(frozen=True)
