@@ -102,6 +102,8 @@ class Event:
         new_state = state
 
         runners = self.get_runners()
+        # Runners make sure runners are sorted, can get messed up sometimes
+        runners = sorted(runners, key=lambda k: k.from_base.value, reverse=True)
 
         if other_runners:
             runners = simplify_runner_advances(runners + other_runners)
@@ -352,7 +354,6 @@ class FieldersChoiceEvent(Event):
         advance = []
         if "FC/SH" == self.raw_string[:5]:
             advance = [RunnerAdvance(Base.BATTER, Base.FIRST, False)]
-
         return self.handle_runners(state, advance)
 
 
