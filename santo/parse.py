@@ -25,6 +25,11 @@ def parse_event_string(play_str: str) -> Event:
     elif re.match(r"^[1-9]+\([B,1-3]\)[1-9](\/.*)?", play_str):
         event_type = OutEvent
 
+    # Defensive Indifference, no attempt to try to stop the player from
+    # stealing
+    elif re.match(r"DI(\.[B,1-3][-,X][B,1-3])*;?", play_str):
+        event_type = DefensiveIndifferenceEvent
+
     # Some kind of interference
     elif re.match(r"C\/E[1-9](\.[B,1-3][-,X][B,1-3])?", play_str):
         event_type = HitEvent
@@ -85,11 +90,6 @@ def parse_event_string(play_str: str) -> Event:
     # Balk
     elif re.match(r"BK(\.[B,1-3][-,X][B,1-3])*;?", play_str):
         event_type = BalkEvent
-
-    # Defensive Indifference, no attempt to try to stop the player from
-    # stealing
-    elif re.match(r"DI(\.[B,1-3][-,X][B,1-3])*;?", play_str):
-        event_type = DefensiveIndifferenceEvent
 
     # Runner Advance not covered by other things
     elif re.match(r"OA(\.[B,1-3][-,X][B,1-3])*;?", play_str):

@@ -330,3 +330,8 @@ class StolenBaseEvent(Event):
             advances.append(advance)
 
         return self.handle_runners(state, advances)
+
+
+@dataclass(frozen=True)
+class DefensiveIndifferenceEvent(Event):
+    ...
