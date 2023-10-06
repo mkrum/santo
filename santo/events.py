@@ -20,10 +20,14 @@ class RunnerAdvance:
 
         is_out = raw_string[1] != "-"
 
+        # This is a little complicated, but if there is a advancment like
+        # 2X3(E8) the player is safe, even though the advance is marked with an
+        # X. However! 2X3(E8)(865) is an out, since there was an error, but then
+        # a successful out.
         modifer_strings = re.findall(r"\((.*?)\)", raw_string)
-
         if any([("E" in m) for m in modifer_strings]):
-            is_out = False
+            additional_out_string = re.findall(r"\((\d*?)\)", raw_string)
+            is_out = len(additional_out_string) != 0
 
         return cls(from_base, to_base, is_out, explicit=True)
 
