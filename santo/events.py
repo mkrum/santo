@@ -137,17 +137,22 @@ class UnionEvent:
 @dataclass(frozen=True)
 class StrikeOutEvent(Event):
     def __call__(self, state: GameState) -> GameState:
-        new_state = state.add_out(Base.BATTER)
+        # A K is not always an out! A batter can advance to fist on a wild pitch
+        new_state = state
+        if not any([r.from_base == Base.BATTER for r in self.get_runners()]):
+            new_state = new_state.add_out(Base.BATTER)
 
         if len(self.raw_string) > 1 and self.raw_string[1] == "+":
             other_event = self.raw_string.split("+")[1]
 
-            assert other_event[:2] in ["CS", "SB"], f"Unkown event {other_event}"
+            assert other_event[:2] in ["CS", "SB", "WP"], f"Unkown event {other_event}"
 
             if other_event[:2] == "CS":
                 other_event = CaughtStealingEvent.from_string(other_event)
             elif other_event[:2] == "SB":
                 other_event = StolenBaseEvent.from_string(other_event)
+            elif other_event[:2] == "WP":
+                other_event = WildPitchEvent.from_string(other_event)
 
             return other_event(new_state)
         else:
