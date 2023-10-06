@@ -78,6 +78,21 @@ class BatterAdjustmentEntry(Entry):
     player_id: str
     hand: str
 
+@dataclass
+class RunnerAdjustmentEntry(Entry):
+    player_id: str
+    base: str
+
+@dataclass
+class LineupAdjustmentEntry(Entry):
+    batting_team: str
+    batting_order: str
+
+@dataclass
+class PitcherResponsibilityAdjustmentEntry(Entry):
+    pitcher_id: str
+    base_runner: str
+
 
 @dataclass
 class Game:
@@ -160,6 +175,12 @@ def load_entries(data: List[List[str]]) -> List[Entry]:
             data_type = CommentaryEntry
         elif type_name == "badj":
             data_type = BatterAdjustmentEntry
+        elif type_name == "radj":
+            data_type = RunnerAdjustmentEntry
+        elif type_name == "ladj":
+            data_type = LineupAdjustmentEntry
+        elif type_name == "presadj":
+            data_type = PitcherResponsibilityAdjustmentEntry
         else:
             raise ValueError(f"Unrecognized type name {type_name}")
 

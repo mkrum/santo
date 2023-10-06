@@ -1,11 +1,20 @@
 import glob
+import logging
+
+import pytest
 
 from santo.utils import load_game_log
 from santo.tests import check_correctness
 import santo.data
 
+logging.disable(level=logging.ERROR)
 
-def test_game_log_percent(year=1992):
+
+@pytest.mark.parametrize(
+    "year", [1922, 1932, 1942, 1952, 1962, 1972, 1982, 1992, 2012, 2022]
+)
+def test_game_log_percent(year):
+    print(year)
     data = load_game_log(f"./data/{year}/gl{year}.txt")
     all_files = glob.glob(f"./data/{year}/*.EV*")
 

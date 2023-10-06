@@ -32,7 +32,7 @@ def check_correctness(data, game):
         try:
             state = parse(state, p.play)
         except AssertionError as e:
-            logging.debug(e)
+            logging.exception(e)
             return False
 
         logging.debug(state)

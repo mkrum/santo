@@ -170,6 +170,8 @@ class StrikeOutEvent(Event):
                 other_event = PassedBallEvent.from_string(other_event)
             elif other_event[:2] == "OA":
                 other_event = OtherAdvanceEvent.from_string(other_event)
+            elif other_event[:4] == "POCS":
+                other_event = PickedOffCaughtStealingEvent.from_string(other_event)
             elif other_event[:2] == "PO":
                 other_event = PickedOffEvent.from_string(other_event)
 
@@ -182,6 +184,7 @@ class StrikeOutEvent(Event):
 class OutEvent(Event):
     def get_players_out(self) -> List[RunnerAdvance]:
         players_out = set()
+
         play_string = self.raw_string.split("/")[0]
 
         marked = re.findall(r"\((.*?)\)", play_string)
@@ -197,7 +200,7 @@ class OutEvent(Event):
 
         # If the string ends in a number and no marking, it is assumed to be the
         # Batter. For example, 64(1)3 is two outs, not one.
-        if play_string[-1] != ")":
+        if play_string[-1] != ")" and not ("E" in play_string):
             players_out.add(RunnerAdvance(Base.BATTER, Base.FIRST, True))
 
         return list(players_out)
@@ -289,7 +292,9 @@ class PassedBallEvent(Event):
 
 @dataclass(frozen=True)
 class ErrorEvent(Event):
-    ...
+    def __call__(self, state: GameState) -> GameState:
+        advance = RunnerAdvance(Base.BATTER, Base.FIRST, False)
+        return self.handle_runners(state, [advance])
 
 
 @dataclass(frozen=True)
@@ -354,10 +359,8 @@ class FoulBallErrorEvent(Event):
 @dataclass(frozen=True)
 class FieldersChoiceEvent(Event):
     def __call__(self, state: GameState) -> GameState:
-        # FC/SH indicates a FC sacrifice HIT, so there is an implict B-1
-        advance = []
-        if "FC/SH" == self.raw_string[:5]:
-            advance = [RunnerAdvance(Base.BATTER, Base.FIRST, False)]
+        # FC indicates an implict B-1
+        advance = [RunnerAdvance(Base.BATTER, Base.FIRST, False)]
         return self.handle_runners(state, advance)
 
 

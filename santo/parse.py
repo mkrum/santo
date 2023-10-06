@@ -35,7 +35,7 @@ def parse_event_string(play_str: str) -> Event:
         event_type = CatcherInterferenceEvent
 
     # Singles, Doubles, Tripples
-    elif re.match(r"S[^B][1-9]?(\/.*)?", play_str):
+    elif re.match(r"S[^B][1-9]?(\/.*)?", play_str) or play_str == "S":
         event_type = HitEvent
 
     elif re.match(r"D[1-9]?(\/.*)?", play_str):
@@ -106,13 +106,13 @@ def parse_event_string(play_str: str) -> Event:
     elif re.match(r"CS[2,3,H]\(.*\)(\.[B,1-3][-,X][B,1-3])*;?", play_str):
         event_type = CaughtStealingEvent
 
-    # Picked Off
-    elif re.match(r"PO[1,2,3,H]\(.*\)(\.[B,1-3][-,X][B,1-3])*;?", play_str):
-        event_type = PickedOffEvent
-
     # Picked Off, runner charged with caught stealing
     elif re.match(r"POCS[2,3,H]\(.*\)(\.[B,1-3][-,X][B,1-3])*;?", play_str):
         event_type = PickedOffCaughtStealingEvent
+
+    # Picked Off
+    elif re.match(r"PO[1,2,3,H]\(.*\)(\.[B,1-3][-,X][B,1-3])*;?", play_str):
+        event_type = PickedOffEvent
 
     else:
         raise ValueError(f"Syntax error parsing {play_str}")
