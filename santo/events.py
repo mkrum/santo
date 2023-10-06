@@ -373,6 +373,10 @@ class StolenBaseEvent(Event):
 
         advances = []
         for sb_string in sb_strings:
+            # If an error happends, runner advancements will be listed normally
+            if sb_string[:2] != "SB":
+                continue
+
             stolen_base = sb_string[2]
 
             if stolen_base == "2":
@@ -381,7 +385,6 @@ class StolenBaseEvent(Event):
                 advance = RunnerAdvance(Base.SECOND, Base.THIRD, False)
             elif stolen_base == "H":
                 advance = RunnerAdvance(Base.THIRD, Base.HOME, False)
-
             advances.append(advance)
 
         return self.handle_runners(state, advances)
