@@ -151,14 +151,19 @@ class StrikeOutEvent(Event):
         if len(self.raw_string) > 1 and self.raw_string[1] == "+":
             other_event = self.raw_string.split("+")[1]
 
-            assert other_event[:2] in [
-                "CS",
-                "SB",
-                "WP",
-                "PB",
-                "OA",
-                "PO",
-            ], f"Unkown strikeout event {other_event}"
+            assert (
+                other_event[:2]
+                in [
+                    "CS",
+                    "SB",
+                    "WP",
+                    "PB",
+                    "OA",
+                    "PO",
+                    "DI",
+                ]
+                or other_event[0] == "E"
+            ), f"Unkown strikeout event {other_event}"
 
             if other_event[:2] == "CS":
                 other_event = CaughtStealingEvent.from_string(other_event)
@@ -174,6 +179,10 @@ class StrikeOutEvent(Event):
                 other_event = PickedOffCaughtStealingEvent.from_string(other_event)
             elif other_event[:2] == "PO":
                 other_event = PickedOffEvent.from_string(other_event)
+            elif other_event[:2] == "DI":
+                other_event = DefensiveIndifferenceEvent.from_string(other_event)
+            elif other_event[0] == "E":
+                other_event = ErrorEvent.from_string(other_event)
 
             return other_event(new_state)
         else:
@@ -221,7 +230,7 @@ class WalkEvent(Event):
         new_state = state
 
         if len(self.raw_string) > 1 and self.raw_string[1] == "+":
-            new_state = state.force_advance(Base.BATTER)
+            # new_state = state.force_advance(Base.BATTER)
 
             other_event = self.raw_string.split("+")[1]
 
@@ -244,7 +253,13 @@ class WalkEvent(Event):
             elif other_event[:2] == "OA":
                 other_event = OtherAdvanceEvent.from_string(other_event)
 
-            return other_event(new_state)
+            new_state = other_event(new_state)
+            runners = other_event.get_runners()
+
+            if any([r.from_base == Base.BATTER for r in runners]):
+                return new_state
+            else:
+                return new_state.force_advance(Base.BATTER)
         else:
             new_state = self.handle_runners(new_state)
             return new_state.force_advance(Base.BATTER)
@@ -332,12 +347,17 @@ class PickedOffEvent(Event):
     def __call__(self, state: GameState) -> GameState:
         pickoff_base = self.raw_string[2]
 
-        if pickoff_base == "1":
+        play_string = self.raw_string.split("/")[0].split(".")[0]
+
+        if "E" in play_string:
+            return self.handle_runners(state)
+        elif pickoff_base == "1":
             advance = RunnerAdvance(Base.FIRST, Base.FIRST, True)
         elif pickoff_base == "2":
             advance = RunnerAdvance(Base.SECOND, Base.SECOND, True)
         elif pickoff_base == "3":
             advance = RunnerAdvance(Base.THIRD, Base.THIRD, True)
+
         return self.handle_runners(state, [advance])
 
 
