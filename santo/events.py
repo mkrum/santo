@@ -172,30 +172,34 @@ class StrikeOutEvent(Event):
 @dataclass(frozen=True)
 class OutEvent(Event):
     def get_players_out(self) -> List[RunnerAdvance]:
-        players_out = set([RunnerAdvance(Base.BATTER, Base.FIRST, True)])
+        players_out = set()
+        play_string = self.raw_string.split("/")[0]
 
-        if "(" in self.raw_string:
-            # TODO: do this right
-            marked = list(
-                map(lambda x: x.split(")")[0], self.raw_string.split("(")[1:])
-            )
+        marked = re.findall(r"\((.*?)\)", play_string)
 
-            # Sometimes these also notify whether the run was earned or not or
-            # have other, strange markings
-            marked = list(filter(lambda x: (x in ["B", "1", "2", "3", "H"]), marked))
+        # Sometimes these also notify whether the run was earned or not or
+        # have other, strange markings
+        marked = list(filter(lambda x: (x in ["B", "1", "2", "3", "H"]), marked))
 
-            runners = list(map(Base.from_short_string, marked))
+        runners = list(map(Base.from_short_string, marked))
 
-            for r in runners:
-                players_out.add(RunnerAdvance(r, r.next_base(), True))
+        for r in runners:
+            players_out.add(RunnerAdvance(r, r.next_base(), True))
 
-        else:
+        # If the string ends in a number and no marking, it is assumed to be the
+        # Batter. For example, 64(1)3 is two outs, not one.
+        if play_string[-1] != ")":
             players_out.add(RunnerAdvance(Base.BATTER, Base.FIRST, True))
 
         return list(players_out)
 
     def __call__(self, state: GameState) -> GameState:
         players_out = self.get_players_out()
+
+        # If the batter is not listed as being out, it is implicitily a single
+        if not any([r.from_base == Base.BATTER for r in players_out]):
+            players_out.append(RunnerAdvance(Base.BATTER, Base.FIRST, False))
+
         return self.handle_runners(state, players_out)
 
 
@@ -247,7 +251,7 @@ class HitEvent(Event):
         return self.raw_string[0]
 
     @classmethod
-    def from_string(cls, string: str) -> "OutEvent":
+    def from_string(cls, string: str) -> "HitEvent":
         return cls(string)
 
     def __call__(self, state: GameState) -> GameState:
