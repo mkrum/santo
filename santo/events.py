@@ -299,8 +299,12 @@ class IntentionalWalkEvent(WalkEvent):
 
 @dataclass(frozen=True)
 class CaughtStealingEvent(Event):
-    def __call__(self, state: GameState) -> GameState:
+    def _get_base(self):
         stolen_base = self.raw_string[2]
+        return stolen_base
+
+    def __call__(self, state: GameState) -> GameState:
+        stolen_base = self._get_base()
 
         modifer_strings = re.findall(r"\((.*?)\)", self.raw_string)
         is_out = True
@@ -358,11 +362,6 @@ class FieldersChoiceEvent(Event):
 
 
 @dataclass(frozen=True)
-class PickedOffCaughtStealingEvent(Event):
-    ...
-
-
-@dataclass(frozen=True)
 class WildPitchEvent(Event):
     ...
 
@@ -404,3 +403,10 @@ class OtherAdvanceEvent(Event):
 @dataclass(frozen=True)
 class CatcherInterferenceEvent(Event):
     ...
+
+
+@dataclass(frozen=True)
+class PickedOffCaughtStealingEvent(CaughtStealingEvent):
+    def _get_base(self):
+        stolen_base = self.raw_string[4]
+        return stolen_base
