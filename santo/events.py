@@ -300,12 +300,18 @@ class CaughtStealingEvent(Event):
     def __call__(self, state: GameState) -> GameState:
         stolen_base = self.raw_string[2]
 
+        modifer_strings = re.findall(r"\((.*?)\)", self.raw_string)
+        is_out = True
+        if any([("E" in m) for m in modifer_strings]):
+            additional_out_string = re.findall(r"\((\d*?)\)", self.raw_string)
+            is_out = len(additional_out_string) != 0
+
         if stolen_base == "2":
-            advance = RunnerAdvance(Base.FIRST, Base.SECOND, True)
+            advance = RunnerAdvance(Base.FIRST, Base.SECOND, is_out)
         elif stolen_base == "3":
-            advance = RunnerAdvance(Base.SECOND, Base.THIRD, True)
+            advance = RunnerAdvance(Base.SECOND, Base.THIRD, is_out)
         elif stolen_base == "H":
-            advance = RunnerAdvance(Base.THIRD, Base.HOME, True)
+            advance = RunnerAdvance(Base.THIRD, Base.HOME, is_out)
 
         return self.handle_runners(state, [advance])
 
