@@ -382,3 +382,8 @@ class DefensiveIndifferenceEvent(Event):
 @dataclass(frozen=True)
 class OtherAdvanceEvent(Event):
     ...
+
+
+@dataclass(frozen=True)
+class CatcherInterferenceEvent(Event):
+    ...

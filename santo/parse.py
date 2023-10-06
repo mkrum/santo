@@ -32,7 +32,7 @@ def parse_event_string(play_str: str) -> Event:
 
     # Some kind of interference
     elif re.match(r"C\/E[1-9](\.[B,1-3][-,X][B,1-3])?", play_str):
-        event_type = HitEvent
+        event_type = CatcherInterferenceEvent
 
     # Singles, Doubles, Tripples
     elif re.match(r"S[^B][1-9]?(\/.*)?", play_str):
