@@ -151,6 +151,7 @@ class StrikeOutEvent(Event):
                 "WP",
                 "PB",
                 "OA",
+                "PO",
             ], f"Unkown strikeout event {other_event}"
 
             if other_event[:2] == "CS":
@@ -163,6 +164,8 @@ class StrikeOutEvent(Event):
                 other_event = PassedBallEvent.from_string(other_event)
             elif other_event[:2] == "OA":
                 other_event = OtherAdvanceEvent.from_string(other_event)
+            elif other_event[:2] == "PO":
+                other_event = PickedOffEvent.from_string(other_event)
 
             return other_event(new_state)
         else:
