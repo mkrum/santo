@@ -324,7 +324,13 @@ class FoulBallErrorEvent(Event):
 
 @dataclass(frozen=True)
 class FieldersChoiceEvent(Event):
-    ...
+    def __call__(self, state: GameState) -> GameState:
+        # FC/SH indicates a FC sacrifice HIT, so there is an implict B-1
+        advance = []
+        if "FC/SH" == self.raw_string[:5]:
+            advance = [RunnerAdvance(Base.BATTER, Base.FIRST, False)]
+
+        return self.handle_runners(state, advance)
 
 
 @dataclass(frozen=True)
