@@ -185,7 +185,7 @@ class OutEvent(Event):
     def get_players_out(self) -> List[RunnerAdvance]:
         players_out = set()
 
-        play_string = self.raw_string.split("/")[0]
+        play_string = self.raw_string.split("/")[0].split(".")[0]
 
         marked = re.findall(r"\((.*?)\)", play_string)
 
