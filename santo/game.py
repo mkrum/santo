@@ -2,7 +2,7 @@ import re
 from dataclasses import dataclass, replace
 from typing import List
 
-from pyrsistent import PMap, pmap
+from pyrsistent import PMap, pmap, PVector, pvector
 
 from santo.utils import Base
 
@@ -20,6 +20,7 @@ class GameState:
 
     score: PMap = pmap({"home": 0, "away": 0})
     bases: PMap = EMPTY_BASES
+    history: PVector = pvector()
 
     def at_bat(self):
         if self.home_team_up:
@@ -73,6 +74,7 @@ class GameState:
             inning=new_inning,
             manfred=self.manfred,
             _is_over=_is_over,
+            history=self.history,
         )
 
         # If its post 2020, we add an player to second base to start extra
@@ -134,18 +136,6 @@ class GameState:
         new_state = new_state.empty_bases()
         return new_state
 
-    def force_advance(self, base: Base) -> "GameState":
-        # If there is a runner on the base we are trying to move to, first move
-        # that runner
-
-        new_state = self
-        if self.bases[base.next_base()]:
-            new_state = self.force_advance(base.next_base())
-
-        new_state = new_state.remove_runner(base)
-        new_state = new_state.add_runner(base.next_base())
-        return new_state
-
     def remove_runner(self, base: Base) -> "GameState":
         new_bases = self.bases
 
@@ -185,3 +175,27 @@ class GameState:
 
     def is_tie(self) -> bool:
         return self.score["home"] == self.score["away"]
+
+    def add_history(self, info) -> "GameState":
+        old_history = self.history
+        new_history = self.history.append(info)
+        return replace(self, history=new_history)
+
+    def apply(self, advance):
+        new_state = self
+
+        # Sometimes more than three runners are recorded as out. In this case,
+        # we want to just stop counting to not trigger any errors
+        if new_state.outs == 3:
+            return new_state
+
+        if advance.is_out:
+            new_state = new_state.add_out(advance.from_base)
+        else:
+            new_state = new_state.remove_runner(advance.from_base)
+            new_state = new_state.add_runner(advance.to_base)
+
+        new_state = new_state.add_history(advance)
+        return new_state
+
+def simple_tokenizekj

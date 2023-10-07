@@ -5,55 +5,18 @@ from dataclasses import dataclass
 
 from santo.utils import Base
 from santo.game import GameState
+from santo.updates import RunnerAdvance
 
 
-@dataclass(frozen=True)
-class RunnerAdvance:
-    """
-    This represents the atomic unit of change for a game state. It represents
-    both players moving between bases and players being called out.
-    """
+def force_advance(state, base: Base) -> GameState:
+    # If there is a runner on the base we are trying to move to, first move
+    # that runner
+    if state.bases[base.next_base()]:
+        state = force_advance(state, base.next_base())
 
-    from_base: Base
-    to_base: Base
-    is_out: bool
-    explicit: bool = False
-
-    @classmethod
-    def from_string(cls, raw_string: str) -> "RunnerAdvance":
-        from_base = Base.from_short_string(raw_string[0])
-        to_base = Base.from_short_string(raw_string[2])
-
-        is_out = raw_string[1] != "-"
-
-        # This is a little complicated, but if there is a advancment like
-        # 2X3(E8) the player is safe, even though the advance is marked with an
-        # X. However! 2X3(E8)(865) is an out, since there was an error, but then
-        # a successful out.
-        modifer_strings = re.findall(r"\((.*?)\)", raw_string)
-        if any([("E" in m) for m in modifer_strings]):
-            additional_out_string = re.findall(r"\((\d*?)\)", raw_string)
-            is_out = len(additional_out_string) != 0
-
-        return cls(from_base, to_base, is_out, explicit=True)
-
-    def __len__(self):
-        return self.to_base.value - self.from_base.value
-
-    def __call__(self, state: GameState) -> GameState:
-        new_state = state
-
-        # Sometimes more than three runners are recorded as out. In this case,
-        # we want to just stop counting to not trigger any errors
-        if new_state.outs == 3:
-            return new_state
-
-        if self.is_out:
-            new_state = new_state.add_out(self.from_base)
-        else:
-            new_state = state.remove_runner(self.from_base)
-            new_state = new_state.add_runner(self.to_base)
-        return new_state
+    advance = RunnerAdvance(base, base.next_base(), False)
+    state = advance(state)
+    return state
 
 
 def simplify_runner_advances(advances: List[RunnerAdvance]) -> List[RunnerAdvance]:
@@ -282,13 +245,14 @@ class WalkEvent(StrikeOutEvent):
             if any([r.from_base == Base.BATTER for r in runners]):
                 return new_state
             else:
-                return new_state.force_advance(Base.BATTER)
+                return force_advance(new_state, Base.BATTER)
         else:
             new_state = self.handle_runners(new_state)
+
             if any([r.from_base == Base.BATTER for r in self.get_runners()]):
                 return new_state
             else:
-                return new_state.force_advance(Base.BATTER)
+                return force_advance(new_state, Base.BATTER)
 
 
 @dataclass(frozen=True)
@@ -460,7 +424,7 @@ class PickedOffCaughtStealingEvent(CaughtStealingEvent):
 @dataclass(frozen=True)
 class HitByPitchEvent(Event):
     def __call__(self, state: GameState) -> GameState:
-        return state.force_advance(Base.BATTER)
+        return force_advance(state, Base.BATTER)
 
 
 @dataclass(frozen=True)

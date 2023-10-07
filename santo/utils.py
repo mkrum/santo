@@ -44,6 +44,11 @@ class Base(Enum):
         assert self.value != 4
         return self.__class__.from_int(self.value + 1)
 
+    def last_base(self):
+        # No last base for batter
+        assert self.value != 0
+        return self.__class__.from_int(self.value - 1)
+
     def __ge__(self, other):
         return self.value >= other.value
 
