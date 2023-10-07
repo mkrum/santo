@@ -27,6 +27,7 @@ def check_correctness(data, game):
 
         if p.inning != state.inning:
             return False
+
         if bool(p.is_home_team) != state.home_team_up:
             return False
 

@@ -197,5 +197,3 @@ class GameState:
 
         new_state = new_state.add_history(advance)
         return new_state
-
-def simple_tokenizekj
