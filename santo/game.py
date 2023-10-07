@@ -10,6 +10,7 @@ EMPTY_BASES = pmap({b: False for b in Base})
 class GameState:
     inning: int = 1
     outs: int = 0
+    manfred: bool = True
 
     home_team_up: bool = False
 
@@ -25,8 +26,8 @@ class GameState:
     def add_out(self, player: Base) -> "GameState":
         current_outs = self.outs
 
-        assert current_outs < 3
-        assert current_outs >= 0
+        assert current_outs < 3, f"Tried to set outs to {current_outs}"
+        assert current_outs >= 0, f"Tried to set outs to {current_outs}"
 
         new_outs = current_outs + 1
 
@@ -45,11 +46,16 @@ class GameState:
         home_team_up = not self.home_team_up
 
         # Fully reset the state, only carry over the score
-        return GameState(
+        new_state = GameState(
             score=self.score,
             home_team_up=home_team_up,
             inning=new_inning,
+            manfred=self.manfred,
         )
+
+        if self.manfred and new_inning > 9:
+            new_state = new_state.add_runner(Base.SECOND)
+        return new_state
 
     def add_runs(self, runs: int) -> "GameState":
         at_bat = self.at_bat()
@@ -100,7 +106,7 @@ class GameState:
             return self
 
         # Can't remove a runner that doesn't exist
-        assert new_bases.get(base)
+        assert new_bases.get(base), f"Tried to remove a runner on {base}"
 
         new_bases = new_bases.set(base, False)
 

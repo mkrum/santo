@@ -10,13 +10,15 @@ logging.getLogger().setLevel(logging.DEBUG)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("year")
     parser.add_argument("game_id")
 
     args = parser.parse_args()
 
-    data = load_game_log(f"./data/{args.year}/gl{args.year}.txt")
-    all_files = glob.glob(f"./data/{args.year}/*.EV*")
+    year = int(args.game_id[3:7])
+    print(year)
+
+    data = load_game_log(f"./data/{year}/gl{year}.txt")
+    all_files = glob.glob(f"./data/{year}/*.EV*")
     all_games = []
     for f in all_files:
         all_games += santo.data.load_evn(f)

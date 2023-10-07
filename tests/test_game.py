@@ -11,7 +11,7 @@ logging.disable(level=logging.ERROR)
 
 
 @pytest.mark.parametrize(
-    "year", [1922, 1932, 1942, 1952, 1962, 1972, 1982, 1992, 2012, 2022]
+    "year", [1922, 1932, 1942, 1952, 1962, 1972, 1982, 1992, 2002, 2012, 2022]
 )
 def test_game_log_percent(year):
     print(year)

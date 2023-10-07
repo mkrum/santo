@@ -12,7 +12,8 @@ def check_correctness(data, game):
     ]
     plays = game.get_plays()
 
-    state = GameState()
+    manfred = game.date.year >= 2020
+    state = GameState(manfred=manfred)
 
     current_inning = 0
     for p in plays:
