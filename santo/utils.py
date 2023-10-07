@@ -44,6 +44,12 @@ class Base(Enum):
         assert self.value != 4
         return self.__class__.from_int(self.value + 1)
 
+    def __ge__(self, other):
+        return self.value >= other.value
+
+    def __gt__(self, other):
+        return self.value > other.value
+
 
 BattingZone = Enum(
     "BattingZone",

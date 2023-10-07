@@ -1,5 +1,6 @@
 import re
 from typing import List, Set
+from itertools import product
 from dataclasses import dataclass
 
 from santo.utils import Base
@@ -35,6 +36,9 @@ class RunnerAdvance:
             is_out = len(additional_out_string) != 0
 
         return cls(from_base, to_base, is_out, explicit=True)
+
+    def __len__(self):
+        return self.to_base.value - self.from_base.value
 
     def __call__(self, state: GameState) -> GameState:
         new_state = state
@@ -89,6 +93,38 @@ def simplify_runner_advances(advances: List[RunnerAdvance]) -> List[RunnerAdvanc
     return ordered_advances
 
 
+def get_valid_advances(state):
+    base_runners = state.get_base_runners()
+
+    possible = {b: [] for b in base_runners}
+    for base_runner in base_runners:
+        forward_bases = list(filter(lambda b: b > base_runner, Base))
+        for fb in forward_bases:
+            possible[base_runner].append(RunnerAdvance(base_runner, fb, True))
+            possible[base_runner].append(RunnerAdvance(base_runner, fb, False))
+
+    possible_combos = product(*(possible[b] for b in base_runners))
+
+    # Make sure the locations they are going to are unique
+    valid_combos = []
+    for advances in possible_combos:
+        to_locations = [a.to_base for a in advances]
+
+        # if all memembers are unique
+        if len(to_locations) == len(set(to_locations)):
+            valid_combos.append(advances)
+
+    unique_possible_combos = set(
+        map(lambda x: frozenset(simplify_runner_advances(x)), valid_combos)
+    )
+    # Re-sort after dedupe
+    unique_possible_combos = [
+        list(sorted(s, key=lambda x: x.from_base.value, reverse=True))
+        for s in unique_possible_combos
+    ]
+    return list(unique_possible_combos)
+
+
 @dataclass(frozen=True)
 class Event:
     raw_string: str
@@ -113,8 +149,11 @@ class Event:
         if other_runners:
             runners = simplify_runner_advances(runners + other_runners)
 
+        assert self.__class__.are_valid(runners)
+
         for advance_runners in runners:
             new_state = advance_runners(new_state)
+
         return new_state
 
     @classmethod
@@ -128,8 +167,12 @@ class Event:
         """
         return self.handle_runners(state)
 
+    def has_error(self):
+        # I think this works?
+        return "E" in self.raw_string
+
     @classmethod
-    def is_valid(cls, state):
+    def are_valid(cls, advancements):
         return True
 
 
@@ -175,6 +218,11 @@ class OutEvent(Event):
 
         return self.handle_runners(state, players_out)
 
+    @classmethod
+    def are_valid(cls, advancements):
+        out_events = list(filter(lambda x: x.is_out, advancements))
+        return len(out_events) > 0
+
 
 @dataclass(frozen=True)
 class StrikeOutEvent(Event):
@@ -182,23 +230,23 @@ class StrikeOutEvent(Event):
         if len(self.raw_string) > 1 and self.raw_string[1] == "+":
             other_event_str = self.raw_string.split("+")[1]
 
-            if other_event[:2] == "CS":
+            if other_event_str[:2] == "CS":
                 other_event = CaughtStealingEvent.from_string(other_event_str)
-            elif other_event[:2] == "SB":
+            elif other_event_str[:2] == "SB":
                 other_event = StolenBaseEvent.from_string(other_event_str)
-            elif other_event[:2] == "WP":
+            elif other_event_str[:2] == "WP":
                 other_event = WildPitchEvent.from_string(other_event_str)
-            elif other_event[:2] == "PB":
+            elif other_event_str[:2] == "PB":
                 other_event = PassedBallEvent.from_string(other_event_str)
-            elif other_event[:2] == "OA":
+            elif other_event_str[:2] == "OA":
                 other_event = OtherAdvanceEvent.from_string(other_event_str)
-            elif other_event[:4] == "POCS":
+            elif other_event_str[:4] == "POCS":
                 other_event = PickedOffCaughtStealingEvent.from_string(other_event_str)
-            elif other_event[:2] == "PO":
+            elif other_event_str[:2] == "PO":
                 other_event = PickedOffEvent.from_string(other_event_str)
-            elif other_event[:2] == "DI":
+            elif other_event_str[:2] == "DI":
                 other_event = DefensiveIndifferenceEvent.from_string(other_event_str)
-            elif other_event[0] == "E":
+            elif other_event_str[0] == "E":
                 other_event = SecondaryErrorEvent.from_string(other_event_str)
             else:
                 # I am using an "assert False" here, since I think we are only
@@ -251,7 +299,14 @@ class HitEvent(Event):
 
     @classmethod
     def from_string(cls, string: str) -> "HitEvent":
-        return cls(string)
+        hit_type = string[0]
+        assert hit_type in ["S", "D", "T"], f"Unkown hit type {hit_type}"
+        if hit_type == "S":
+            return SingleEvent(string)
+        elif hit_type == "D":
+            return DoubleEvent(string)
+        elif hit_type == "T":
+            return TrippleEvent(string)
 
     def __call__(self, state: GameState) -> GameState:
         hit_type = self.hit_type
@@ -263,6 +318,41 @@ class HitEvent(Event):
         elif hit_type == "T":
             advance = RunnerAdvance(Base.BATTER, Base.THIRD, False)
         return self.handle_runners(state, [advance])
+
+    def is_hit_type(self, advancement):
+        ...
+
+    @classmethod
+    def are_valid(cls, advancements):
+        hit_moves = list(filter(cls.is_hit_type, advancements))
+        return len(hit_moves) > 0
+
+
+@dataclass(frozen=True)
+class SingleEvent(HitEvent):
+    @classmethod
+    def is_hit_type(cls, advancement):
+        return (
+            advancement.from_base == Base.BATTER and advancement.to_base >= Base.FIRST
+        )
+
+
+@dataclass(frozen=True)
+class DoubleEvent(HitEvent):
+    @classmethod
+    def is_hit_type(self, advancement):
+        return (
+            advancement.from_base == Base.BATTER and advancement.to_base >= Base.SECOND
+        )
+
+
+@dataclass(frozen=True)
+class TrippleEvent(HitEvent):
+    @classmethod
+    def is_hit_type(self, advancement):
+        return (
+            advancement.from_base == Base.BATTER and advancement.to_base >= Base.THIRD
+        )
 
 
 @dataclass(frozen=True)
@@ -287,6 +377,11 @@ class StolenBaseEvent(Event):
             advances.append(advance)
 
         return self.handle_runners(state, advances)
+
+    @classmethod
+    def are_valid(cls, advancements):
+        singlebaseattempt = list(filter(lambda x: len(x) >= 1, advancements))
+        return len(singlebaseattempt) > 0
 
 
 @dataclass(frozen=True)

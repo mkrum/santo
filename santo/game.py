@@ -1,6 +1,9 @@
 import re
 from dataclasses import dataclass, replace
+from typing import List
+
 from pyrsistent import PMap, pmap
+
 from santo.utils import Base
 
 EMPTY_BASES = pmap({b: False for b in Base})
@@ -11,6 +14,7 @@ class GameState:
     inning: int = 1
     outs: int = 0
     manfred: bool = True
+    _is_over: bool = False
 
     home_team_up: bool = False
 
@@ -22,6 +26,10 @@ class GameState:
             return "home"
         else:
             return "away"
+
+    @property
+    def away_team_up(self):
+        return not self.home_team_up
 
     def add_out(self, player: Base) -> "GameState":
         current_outs = self.outs
@@ -40,10 +48,23 @@ class GameState:
 
     def end_inning(self) -> "GameState":
         new_inning = self.inning
+
         if self.home_team_up:
             new_inning += 1
 
         home_team_up = not self.home_team_up
+
+        _is_over = False
+        if new_inning < 9:
+            _is_over = False
+        elif home_team_up and self.score["home"] > self.score["away"]:
+            _is_over = True
+        elif (
+            new_inning > 9
+            and (not home_team_up)
+            and self.score["away"] > self.score["home"]
+        ):
+            _is_over = True
 
         # Fully reset the state, only carry over the score
         new_state = GameState(
@@ -51,11 +72,38 @@ class GameState:
             home_team_up=home_team_up,
             inning=new_inning,
             manfred=self.manfred,
+            _is_over=_is_over,
         )
 
+        # If its post 2020, we add an player to second base to start extra
+        # innings
         if self.manfred and new_inning > 9:
             new_state = new_state.add_runner(Base.SECOND)
+
         return new_state
+
+    @property
+    def is_over(self) -> bool:
+        """
+        This logic is a little complicated since we need to handle both walk
+        offs and games ending naturally. _is_over handles games ending naturally
+        at the inning break. We need to check for both of these seperately since
+        there can be amiguity as to the ordering of events. For example a state
+        with a zero out home run and a state that had a home run in the previous
+        inning.
+        """
+        if self._is_over:
+            return True
+
+        # Only home team can walk it off
+        if (
+            self.inning >= 9
+            and self.home_team_up
+            and self.score["home"] > self.score["away"]
+        ):
+            return True
+
+        return False
 
     def add_runs(self, runs: int) -> "GameState":
         at_bat = self.at_bat()
@@ -126,3 +174,14 @@ class GameState:
             new_state = new_state.add_runs(1)
 
         return replace(new_state, bases=new_bases)
+
+    def get_base_runners(self) -> List[Base]:
+        base_runners = [Base.BATTER]
+        for b in Base:
+            if self.bases[b]:
+                base_runners.append(b)
+
+        return base_runners
+
+    def is_tie(self) -> bool:
+        return self.score["home"] == self.score["away"]

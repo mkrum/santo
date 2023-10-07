@@ -35,8 +35,9 @@ def check_correctness(data, game):
         except AssertionError as e:
             logging.exception(e)
             return False
-
         logging.debug(state)
+
+    logging.debug(f"Thinks game is over {state.is_over}")
 
     sim_outcome = (state.score["home"], state.score["away"])
     real_outcome = (

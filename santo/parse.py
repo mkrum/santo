@@ -13,8 +13,11 @@ def parse_event_string(play_str: str) -> Event:
     # Nothing happens
     event = IdentityEvent()
 
+    if re.match(r"^[1-9]*E[1-9]*(\/.*)?", play_str):
+        event_type = ErrorEvent
+
     # Out
-    if re.match(r"^[1-9]+(\/.*)?", play_str):
+    elif re.match(r"^[1-9]+(\/.*)?", play_str):
         event_type = OutEvent
 
     # Out, with runner specified
