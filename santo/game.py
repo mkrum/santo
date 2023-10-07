@@ -117,7 +117,7 @@ class GameState:
         new_state = self
 
         # Can't add a runner to a base with someone on it
-        assert not new_bases.get(base)
+        assert not new_bases.get(base), f"Tried to remove a runner from {base}"
 
         if base != Base.HOME:
             new_bases = new_bases.set(base, True)
