@@ -130,6 +130,8 @@ def parse_event_string(play_str: str) -> Event:
 def parse(state: GameState, event_str: str) -> GameState:
     event = parse_event_string(event_str)
 
+    state = state.add_history(GameBreak())
+
     state = state.add_history(PlayBreak(event.__class__.__name__))
 
     state = event(state)
