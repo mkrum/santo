@@ -1,7 +1,9 @@
-import jax.numpy as jnp
 from typing import List
 from pathlib import Path
 from typing import List
+
+import jax
+import jax.numpy as jnp
 
 from santo.game import GameState
 from santo.parse import parse
@@ -94,6 +96,30 @@ class PlayByPlayDataset:
 
     def __getitem__(self, idx):
         return self.data[idx]
+
+
+def batch(key, dataset: PlayByPlayDataset, batch_size: int, drop_last: bool = True):
+    N = len(dataset)
+    total_indeces = jnp.arange(N)
+    shuffled_indeces = jax.random.shuffle(key, total_indeces)
+
+    num_equal_batches = N // batch_size
+
+    for idx in range(num_equal_batches):
+        indeces = shuffled_indeces[idx * batch_size : (idx + 1) * batch_size]
+        data = [dataset[i] for i in indeces]
+        yield jnp.stack(data)
+
+    if not drop_last:
+        leftover = N - num_equal_batches * batch_size
+
+        if leftover == 0:
+            return
+
+        else:
+            indeces = shuffled_indeces[-leftover:]
+            data = [dataset[i] for i in indeces]
+            yield jnp.stack(data)
 
 
 if __name__ == "__main__":
