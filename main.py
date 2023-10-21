@@ -36,6 +36,34 @@ embedding_matrix = jax.random.normal(key, (vocab_size, 16))
 mlp_matrix = jax.random.normal(key, (16, vocab_size))
 
 train_data = PlayByPlayDataset([2013, 2014, 2015])
+eval_data = PlayByPlayDataset([2016])
+
+
+def eval_model(eval_data, embedding_matrix, mlp_matrix):
+    total_correct = 0.0
+    total = 0.0
+    for data in batch(key, eval_data, 8, drop_last=False):
+        targets = data[:, 1:]
+        data = data[:, :-1]
+        mask = data != -1
+
+        input_data = jax.nn.one_hot(data, num_classes=vocab_size)
+        target_one_hot = jax.nn.one_hot(targets, num_classes=vocab_size)
+
+        embeddings = jnp.matmul(input_data, embedding_matrix)
+        representation = jnp.matmul(embeddings, mlp_matrix)
+        logits = jax.nn.log_softmax(representation)
+        predictions = jnp.argmax(logits, axis=2)
+        mask = data != -1
+        batch_correct = ((predictions == targets) * mask).sum()
+        total_correct += batch_correct
+        total += mask.sum()
+
+    print(total_correct / total)
+    return total_correct / total
+
+
+eval_model(eval_data, embedding_matrix, mlp_matrix)
 
 lr = 1e-2
 for data in batch(key, train_data, 8):
@@ -53,3 +81,5 @@ for data in batch(key, train_data, 8):
     mlp_matrix -= lr * mlp_grad
 
     print(loss)
+
+eval_model(eval_data, embedding_matrix, mlp_matrix)
