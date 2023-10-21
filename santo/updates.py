@@ -10,6 +10,42 @@ POSSIBLE_ADVANCES = list(
     filter(lambda x: x[0] <= x[1], product(list(Base), list(Base), [True, False]))
 )
 
+EVENTS = [
+    "IdentityEvent",
+    "OutEvent",
+    "StrikeOutEvent",
+    "WalkEvent",
+    "HitEvent",
+    "SingleEvent",
+    "DoubleEvent",
+    "TrippleEvent",
+    "StolenBaseEvent",
+    "CaughtStealingEvent",
+    "PickedOffEvent",
+    "FieldersChoiceEvent",
+    "CatcherInterferenceEvent",
+    "PickedOffCaughtStealingEvent",
+    "HitByPitchEvent",
+    "HomeRunEvent",
+    "ErrorEvent",
+    "DefensiveIndifferenceEvent",
+    "OtherAdvanceEvent",
+    "WildPitchEvent",
+    "BalkEvent",
+    "RunnersAdvanceEvent",
+    "FoulBallErrorEvent",
+    "IntentionalWalkEvent",
+    "SecondaryErrorEvent",
+    "PassedBallEvent",
+]
+
+BREAKS = [
+    "InningBreak",
+    "GameBreak",
+]
+
+TOTAL = POSSIBLE_ADVANCES + EVENTS + BREAKS
+
 
 @dataclass(frozen=True)
 class Update:
@@ -71,32 +107,34 @@ class RunnerAdvance(Update):
 
 @dataclass(frozen=True)
 class PlayBreak(Update):
+    event: str
+
     def __int__(self):
-        return len(POSSIBLE_ADVANCES)
+        return TOTAL.index(self.event)
 
     @classmethod
     def from_int(cls, idx):
-        assert idx == len(POSSIBLE_ADVANCES)
-        return cls()
+        event_type = TOTAL[idx]
+        return cls(event_type)
 
 
 @dataclass(frozen=True)
 class InningBreak(Update):
     def __int__(self):
-        return len(POSSIBLE_ADVANCES) + 1
+        return TOTAL.index("InningBreak")
 
     @classmethod
     def from_int(cls, idx):
-        assert idx == len(POSSIBLE_ADVANCES) + 1
+        assert idx == TOTAL.index("InningBreak")
         return cls()
 
 
 @dataclass(frozen=True)
 class GameBreak(Update):
     def __int__(self):
-        return len(POSSIBLE_ADVANCES) + 1
+        return TOTAL.index("GameBreak")
 
     @classmethod
     def from_int(cls, idx):
-        assert idx == len(POSSIBLE_ADVANCES) + 1
+        assert idx == TOTAL.index("GameBreak")
         return cls()

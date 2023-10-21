@@ -112,8 +112,6 @@ class Event:
         if other_runners:
             runners = simplify_runner_advances(runners + other_runners)
 
-        assert self.__class__.are_valid(runners)
-
         for advance_runners in runners:
             new_state = advance_runners(new_state)
 
@@ -134,10 +132,6 @@ class Event:
         # I think this works?
         return "E" in self.raw_string
 
-    @classmethod
-    def are_valid(cls, advancements):
-        return True
-
 
 @dataclass(frozen=True)
 class IdentityEvent(Event):
@@ -153,6 +147,12 @@ class OutEvent(Event):
         players_out = set()
 
         play_string = self.raw_string.split("/")[0].split(".")[0]
+
+        # Sanitize play string of the weird unnessecary annotations
+        play_string = play_string.replace("!", "")
+        play_string = play_string.replace("?", "")
+        play_string = play_string.replace("+", "")
+        play_string = play_string.replace("-", "")
 
         marked = re.findall(r"\((.*?)\)", play_string)
 
@@ -181,43 +181,37 @@ class OutEvent(Event):
 
         return self.handle_runners(state, players_out)
 
-    @classmethod
-    def are_valid(cls, advancements):
-        out_events = list(filter(lambda x: x.is_out, advancements))
-        return len(out_events) > 0
-
 
 @dataclass(frozen=True)
 class StrikeOutEvent(Event):
     def _handle_plus(self):
-        if len(self.raw_string) > 1 and self.raw_string[1] == "+":
-            other_event_str = self.raw_string.split("+")[1]
+        other_event_str = self.raw_string.split("+")[1]
 
-            if other_event_str[:2] == "CS":
-                other_event = CaughtStealingEvent.from_string(other_event_str)
-            elif other_event_str[:2] == "SB":
-                other_event = StolenBaseEvent.from_string(other_event_str)
-            elif other_event_str[:2] == "WP":
-                other_event = WildPitchEvent.from_string(other_event_str)
-            elif other_event_str[:2] == "PB":
-                other_event = PassedBallEvent.from_string(other_event_str)
-            elif other_event_str[:2] == "OA":
-                other_event = OtherAdvanceEvent.from_string(other_event_str)
-            elif other_event_str[:4] == "POCS":
-                other_event = PickedOffCaughtStealingEvent.from_string(other_event_str)
-            elif other_event_str[:2] == "PO":
-                other_event = PickedOffEvent.from_string(other_event_str)
-            elif other_event_str[:2] == "DI":
-                other_event = DefensiveIndifferenceEvent.from_string(other_event_str)
-            elif other_event_str[0] == "E":
-                other_event = SecondaryErrorEvent.from_string(other_event_str)
-            else:
-                # I am using an "assert False" here, since I think we are only
-                # catching Assertion errors to differentiate between parsing
-                # errors and programmatic errors.
-                assert False, f"unknown event {other_event}"
+        if other_event_str[:2] == "CS":
+            other_event = CaughtStealingEvent.from_string(other_event_str)
+        elif other_event_str[:2] == "SB":
+            other_event = StolenBaseEvent.from_string(other_event_str)
+        elif other_event_str[:2] == "WP":
+            other_event = WildPitchEvent.from_string(other_event_str)
+        elif other_event_str[:2] == "PB":
+            other_event = PassedBallEvent.from_string(other_event_str)
+        elif other_event_str[:2] == "OA":
+            other_event = OtherAdvanceEvent.from_string(other_event_str)
+        elif other_event_str[:4] == "POCS":
+            other_event = PickedOffCaughtStealingEvent.from_string(other_event_str)
+        elif other_event_str[:2] == "PO":
+            other_event = PickedOffEvent.from_string(other_event_str)
+        elif other_event_str[:2] == "DI":
+            other_event = DefensiveIndifferenceEvent.from_string(other_event_str)
+        elif other_event_str[0] == "E":
+            other_event = SecondaryErrorEvent.from_string(other_event_str)
+        else:
+            # I am using an "assert False" here, since I think we are only
+            # catching Assertion errors to differentiate between parsing
+            # errors and programmatic errors.
+            assert False, f"unknown event {other_event}"
 
-            return other_event
+        return other_event
 
     def __call__(self, state: GameState) -> GameState:
         # A K is not always an out! A batter can advance to fist on a wild pitch
@@ -225,7 +219,7 @@ class StrikeOutEvent(Event):
         if not any([r.from_base == Base.BATTER for r in self.get_runners()]):
             new_state = new_state.add_out(Base.BATTER)
 
-        if len(self.raw_string) > 1 and self.raw_string[1] == "+":
+        if len(self.raw_string) > 1 and "+" in self.raw_string:
             other_event = self._handle_plus()
             return other_event(new_state)
         else:
@@ -286,11 +280,6 @@ class HitEvent(Event):
     def is_hit_type(self, advancement):
         ...
 
-    @classmethod
-    def are_valid(cls, advancements):
-        hit_moves = list(filter(cls.is_hit_type, advancements))
-        return len(hit_moves) > 0
-
 
 @dataclass(frozen=True)
 class SingleEvent(HitEvent):
@@ -341,11 +330,6 @@ class StolenBaseEvent(Event):
             advances.append(advance)
 
         return self.handle_runners(state, advances)
-
-    @classmethod
-    def are_valid(cls, advancements):
-        singlebaseattempt = list(filter(lambda x: len(x) >= 1, advancements))
-        return len(singlebaseattempt) > 0
 
 
 @dataclass(frozen=True)

@@ -3,7 +3,7 @@ from santo.game import GameState
 import logging
 import re
 
-from santo.updates import PlayBreak, InningBreak
+from santo.updates import InningBreak, PlayBreak, GameBreak
 
 
 def parse_event_string(play_str: str) -> Event:
@@ -129,11 +129,14 @@ def parse_event_string(play_str: str) -> Event:
 
 def parse(state: GameState, event_str: str) -> GameState:
     event = parse_event_string(event_str)
-    state = state.add_history(PlayBreak())
+
+    state = state.add_history(PlayBreak(event.__class__.__name__))
+
     state = event(state)
 
     if state.inning_is_over():
         state = state.add_history(InningBreak())
         state = state.end_inning()
 
+    state = state.add_history(GameBreak())
     return state
