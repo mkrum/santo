@@ -1,4 +1,5 @@
 import santo.data
+import santo.dataset
 
 
 def test_evn():
@@ -11,3 +12,8 @@ def test_eva():
 
 def test_box_score():
     games = santo.data.load_evn("./data/1992/1992CHN.EVN")
+
+
+def test_dataset():
+    dataset = santo.dataset.PlayByPlayDataset(list(range(1913, 2022)))
+    breakpoint()

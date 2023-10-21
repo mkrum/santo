@@ -1,5 +1,7 @@
 import jax.numpy as jnp
 from typing import List
+from pathlib import Path
+from typing import List
 
 from santo.game import GameState
 from santo.parse import parse
@@ -60,6 +62,38 @@ def load_games(path) -> List[jnp.array]:
         vectors.append(vector)
 
     return vectors
+
+
+class PlayByPlayDataset:
+    def __init__(self, years: List[int]):
+        self.data = self._load_data(years)
+
+    def _load_data(self, years):
+        arrays = []
+        for year in years:
+            data_path = f"./data/{year}/data.npy"
+            arrays.append(jnp.load(data_path))
+
+        padded_width = max([a.shape[1] for a in arrays])
+        padded_arrays = []
+        for array in arrays:
+            padded_arrays.append(
+                jnp.pad(
+                    array,
+                    ((0, 0), (0, padded_width - array.shape[1])),
+                    mode="constant",
+                    constant_values=-1,
+                )
+            )
+
+        dataset = jnp.concatenate(padded_arrays, axis=0)
+        return dataset
+
+    def __len__(self):
+        return self.data.shape[0]
+
+    def __getitem__(self, idx):
+        return self.data[idx]
 
 
 if __name__ == "__main__":
