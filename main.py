@@ -1,11 +1,11 @@
 from dataclasses import dataclass
+from typing import List
+from functools import partial
 
 import jax
 import jax.nn
 import jax.random
 import jax.numpy as jnp
-
-from einops import rearrange
 
 from santo.dataset import PlayByPlayDataset, batch
 from santo.updates import TOTAL
@@ -33,7 +33,7 @@ class MLP(Layer):
 
         return {"W": W, "b": b}
 
-    def __call__(self, x, W, b):
+    def __call__(self, W, b, x):
         x_out = jnp.matmul(x, W)
         output = x_out + b
         return output
@@ -49,12 +49,27 @@ class Embedding(Layer):
         W = jax.random.normal(key, (self.vocab_size, self.out_dim))
         return {"W": W}
 
-    def __call__(self, x, W):
+    def __call__(self, W, x):
         return jnp.matmul(x, W)
 
 
-def model_step(params, layers, input_data, target_one_hot):
-    representation = forward(params, layers, input_data)
+@dataclass(frozen=True)
+class Sequential(Layer):
+    layers: List
+
+    def initialize(self, key):
+        # TODO: I think this key needs to be consumed in some way?
+        return [l.initialize(key) for l in self.layers]
+
+    def __call__(self, params, inp):
+        x = inp
+        for p, l in zip(params, self.layers):
+            x = l(**p, x=x)
+        return x
+
+
+def model_step(params, model, input_data, target_one_hot):
+    representation = model(params, input_data)
 
     loss = compute_loss(representation, target_one_hot, mask)
     return loss
@@ -69,7 +84,7 @@ def compute_loss(representation: jnp.array, target_one_hot: jnp.array, mask: jnp
     return loss
 
 
-def eval_model(eval_data, params, layers):
+def eval_model(eval_data, params, model):
     total = 0.0
     total_correct = 0.0
     for data in batch(key, eval_data, 8, drop_last=False):
@@ -80,7 +95,7 @@ def eval_model(eval_data, params, layers):
         input_data = jax.nn.one_hot(data, num_classes=vocab_size)
         target_one_hot = jax.nn.one_hot(targets, num_classes=vocab_size)
 
-        representation = forward(params, layers, input_data)
+        representation = model(params, input_data)
 
         logits = jax.nn.log_softmax(representation)
         predictions = jnp.argmax(logits, axis=2)
@@ -98,18 +113,8 @@ def eval_model(eval_data, params, layers):
 vocab_size = len(TOTAL)
 
 key = jax.random.PRNGKey(0)
-
-
-def forward(params, layers, inp):
-    x = inp
-    for p, l in zip(params, layers):
-        x = l(x, **p)
-
-    return x
-
-
-layers = [Embedding(vocab_size, 16), MLP(16, vocab_size)]
-params = [l.initialize(key) for l in layers]
+layers = Sequential([Embedding(vocab_size, 16), MLP(16, vocab_size)])
+params = layers.initialize(key)
 
 train_data = PlayByPlayDataset([2013, 2014, 2015])
 eval_data = PlayByPlayDataset([2016])
