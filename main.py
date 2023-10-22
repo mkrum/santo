@@ -11,9 +11,50 @@ from santo.dataset import PlayByPlayDataset, batch
 from santo.updates import TOTAL
 
 
-def model_step(embedding_matrix, mlp_matrix, input_data, target_one_hot):
-    embeddings = jnp.matmul(input_data, embedding_matrix)
-    representation = jnp.matmul(embeddings, mlp_matrix)
+@dataclass(frozen=True)
+class Layer:
+    @classmethod
+    def initialize(cls, *args, **kwargs):
+        ...
+
+    def __call__(self, *args, **kwargs):
+        ...
+
+
+@dataclass(frozen=True)
+class MLP(Layer):
+    in_dim: int
+    out_dim: int
+
+    def initialize(self, key):
+        # TODO: better initalization
+        W = jax.random.normal(key, (self.in_dim, self.out_dim))
+        b = jax.random.normal(key, (self.out_dim,))
+
+        return {"W": W, "b": b}
+
+    def __call__(self, x, W, b):
+        x_out = jnp.matmul(x, W)
+        output = x_out + b
+        return output
+
+
+@dataclass(frozen=True)
+class Embedding(Layer):
+    vocab_size: int
+    out_dim: int
+
+    def initialize(self, key):
+        # TODO: better initalization
+        W = jax.random.normal(key, (self.vocab_size, self.out_dim))
+        return {"W": W}
+
+    def __call__(self, x, W):
+        return jnp.matmul(x, W)
+
+
+def model_step(params, layers, input_data, target_one_hot):
+    representation = forward(params, layers, input_data)
 
     loss = compute_loss(representation, target_one_hot, mask)
     return loss
@@ -28,20 +69,9 @@ def compute_loss(representation: jnp.array, target_one_hot: jnp.array, mask: jnp
     return loss
 
 
-vocab_size = len(TOTAL)
-
-key = jax.random.PRNGKey(0)
-
-embedding_matrix = jax.random.normal(key, (vocab_size, 16))
-mlp_matrix = jax.random.normal(key, (16, vocab_size))
-
-train_data = PlayByPlayDataset([2013, 2014, 2015])
-eval_data = PlayByPlayDataset([2016])
-
-
-def eval_model(eval_data, embedding_matrix, mlp_matrix):
-    total_correct = 0.0
+def eval_model(eval_data, params, layers):
     total = 0.0
+    total_correct = 0.0
     for data in batch(key, eval_data, 8, drop_last=False):
         targets = data[:, 1:]
         data = data[:, :-1]
@@ -50,11 +80,13 @@ def eval_model(eval_data, embedding_matrix, mlp_matrix):
         input_data = jax.nn.one_hot(data, num_classes=vocab_size)
         target_one_hot = jax.nn.one_hot(targets, num_classes=vocab_size)
 
-        embeddings = jnp.matmul(input_data, embedding_matrix)
-        representation = jnp.matmul(embeddings, mlp_matrix)
+        representation = forward(params, layers, input_data)
+
         logits = jax.nn.log_softmax(representation)
         predictions = jnp.argmax(logits, axis=2)
+
         mask = data != -1
+
         batch_correct = ((predictions == targets) * mask).sum()
         total_correct += batch_correct
         total += mask.sum()
@@ -63,23 +95,44 @@ def eval_model(eval_data, embedding_matrix, mlp_matrix):
     return total_correct / total
 
 
-eval_model(eval_data, embedding_matrix, mlp_matrix)
+vocab_size = len(TOTAL)
+
+key = jax.random.PRNGKey(0)
+
+
+def forward(params, layers, inp):
+    x = inp
+    for p, l in zip(params, layers):
+        x = l(x, **p)
+
+    return x
+
+
+layers = [Embedding(vocab_size, 16), MLP(16, vocab_size)]
+params = [l.initialize(key) for l in layers]
+
+train_data = PlayByPlayDataset([2013, 2014, 2015])
+eval_data = PlayByPlayDataset([2016])
+
+eval_model(eval_data, params, layers)
 
 lr = 1e-2
 for data in batch(key, train_data, 8):
     targets = data[:, 1:]
     data = data[:, :-1]
     mask = data != -1
+
     input_data = jax.nn.one_hot(data, num_classes=vocab_size)
     target_one_hot = jax.nn.one_hot(targets, num_classes=vocab_size)
 
-    loss, (embedding_grad, mlp_grad) = jax.value_and_grad(model_step, (0, 1))(
-        embedding_matrix, mlp_matrix, input_data, target_one_hot
+    loss, grads = jax.value_and_grad(model_step)(
+        params, layers, input_data, target_one_hot
     )
 
-    embedding_matrix -= lr * embedding_grad
-    mlp_matrix -= lr * mlp_grad
+    for p, g in zip(params, grads):
+        for k in p.keys():
+            p[k] -= lr * g[k]
 
     print(loss)
 
-eval_model(eval_data, embedding_matrix, mlp_matrix)
+eval_model(eval_data, params, layers)
