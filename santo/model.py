@@ -64,6 +64,12 @@ class ReLU(NonParametricLayer):
 
 
 @dataclass(frozen=True)
+class LogSoftmax(NonParametricLayer):
+    def __call__(self, x):
+        return jax.nn.log_softmax(x)
+
+
+@dataclass(frozen=True)
 class Sequential(Layer):
     layers: List
 
