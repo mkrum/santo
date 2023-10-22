@@ -1,82 +1,19 @@
-from dataclasses import dataclass
-from typing import List
-from functools import partial
-
 import jax
 import jax.nn
 import jax.random
 import jax.numpy as jnp
 
+from santo.model import MLP, Embedding, Sequential, ReLU, LogSoftmax
 from santo.dataset import PlayByPlayDataset, batch
 from santo.updates import TOTAL
 
 
-@dataclass(frozen=True)
-class Layer:
-    @classmethod
-    def initialize(cls, *args, **kwargs):
-        ...
+def compute_loss(params, model, data, targets):
+    mask = data != -1
 
-    def __call__(self, *args, **kwargs):
-        ...
+    logits = model(params, data)
 
-
-@dataclass(frozen=True)
-class MLP(Layer):
-    in_dim: int
-    out_dim: int
-
-    def initialize(self, key):
-        # TODO: better initalization
-        W = jax.random.normal(key, (self.in_dim, self.out_dim))
-        b = jax.random.normal(key, (self.out_dim,))
-
-        return {"W": W, "b": b}
-
-    def __call__(self, W, b, x):
-        x_out = jnp.matmul(x, W)
-        output = x_out + b
-        return output
-
-
-@dataclass(frozen=True)
-class Embedding(Layer):
-    vocab_size: int
-    out_dim: int
-
-    def initialize(self, key):
-        # TODO: better initalization
-        W = jax.random.normal(key, (self.vocab_size, self.out_dim))
-        return {"W": W}
-
-    def __call__(self, W, x):
-        return jnp.matmul(x, W)
-
-
-@dataclass(frozen=True)
-class Sequential(Layer):
-    layers: List
-
-    def initialize(self, key):
-        # TODO: I think this key needs to be consumed in some way?
-        return [l.initialize(key) for l in self.layers]
-
-    def __call__(self, params, inp):
-        x = inp
-        for p, l in zip(params, self.layers):
-            x = l(**p, x=x)
-        return x
-
-
-def model_step(params, model, input_data, target_one_hot):
-    representation = model(params, input_data)
-
-    loss = compute_loss(representation, target_one_hot, mask)
-    return loss
-
-
-def compute_loss(representation: jnp.array, target_one_hot: jnp.array, mask: jnp.array):
-    logits = jax.nn.log_softmax(representation)
+    target_one_hot = jax.nn.one_hot(targets, num_classes=vocab_size)
 
     relevant_logits = jnp.sum(logits * target_one_hot, axis=2)
     batch_loss = (relevant_logits * mask).sum(axis=1) / mask.sum(axis=1)
@@ -90,17 +27,13 @@ def eval_model(eval_data, params, model):
     for data in batch(key, eval_data, 8, drop_last=False):
         targets = data[:, 1:]
         data = data[:, :-1]
+
         mask = data != -1
 
-        input_data = jax.nn.one_hot(data, num_classes=vocab_size)
-        target_one_hot = jax.nn.one_hot(targets, num_classes=vocab_size)
-
-        representation = model(params, input_data)
+        representation = model(params, data)
 
         logits = jax.nn.log_softmax(representation)
         predictions = jnp.argmax(logits, axis=2)
-
-        mask = data != -1
 
         batch_correct = ((predictions == targets) * mask).sum()
         total_correct += batch_correct
@@ -113,7 +46,8 @@ def eval_model(eval_data, params, model):
 vocab_size = len(TOTAL)
 
 key = jax.random.PRNGKey(0)
-layers = Sequential([Embedding(vocab_size, 16), MLP(16, vocab_size)])
+
+layers = Sequential([Embedding(vocab_size, 16), ReLU(), MLP(16, vocab_size)])
 params = layers.initialize(key)
 
 train_data = PlayByPlayDataset([2013, 2014, 2015])
@@ -125,14 +59,8 @@ lr = 1e-2
 for data in batch(key, train_data, 8):
     targets = data[:, 1:]
     data = data[:, :-1]
-    mask = data != -1
 
-    input_data = jax.nn.one_hot(data, num_classes=vocab_size)
-    target_one_hot = jax.nn.one_hot(targets, num_classes=vocab_size)
-
-    loss, grads = jax.value_and_grad(model_step)(
-        params, layers, input_data, target_one_hot
-    )
+    loss, grads = jax.value_and_grad(compute_loss)(params, layers, data, targets)
 
     for p, g in zip(params, grads):
         for k in p.keys():
