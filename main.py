@@ -7,6 +7,7 @@ import jax.numpy as jnp
 
 from santo.model import MLP, Embedding, Sequential, ReLU, LogSoftmax
 from santo.dataset import PlayByPlayDataset, batch
+from santo.opt import Adam
 from santo.updates import TOTAL
 
 
@@ -52,8 +53,8 @@ layers = Sequential(
 )
 params = layers.initialize(key)
 
-opt = SGD(lr=1e-2)
-opt_params = SGD.intialize(params)
+opt = Adam(lr=1e-2)
+opt_params = Adam.intialize(params)
 
 train_data = PlayByPlayDataset([2013, 2014, 2015])
 eval_data = PlayByPlayDataset([2016])
@@ -68,7 +69,7 @@ for data in batch(key, train_data, 8):
 
     loss, grads = jax.value_and_grad(compute_loss)(params, layers, data, targets)
 
-    params, opt_params = opt.step(params, grads, **opt_params)
+    params, opt_params = opt.step(params, grads, opt_params)
 
     print(loss)
 
