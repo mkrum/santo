@@ -1,6 +1,15 @@
 import pandas as pd
 from enum import Enum
 
+import functools
+
+
+def partial(fn):
+    def wrapped_fn(*args, **kwargs):
+        return functools.partial(fn, *args, **kwargs)
+
+    return wrapped_fn
+
 
 def load_game_log(path: str) -> pd.DataFrame:
     data = pd.read_csv(path, header=None)

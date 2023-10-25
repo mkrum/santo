@@ -2,6 +2,8 @@ from dataclasses import dataclass
 
 import jax.numpy as jnp
 
+from santo.utils import partial
+
 
 @dataclass
 class Optimizer:
@@ -19,10 +21,12 @@ class SGD(Optimizer):
     def intialize(params):
         return dict()
 
-    def step(self, params, grads):
+    @partial
+    def step(self, opt_params, params, grads):
         for p, g in zip(params, grads):
-            for k in p.keys():
-                p[k] -= lr * g[k]
+            fields = p._fields
+            for k in fields:
+                setattr(p, k, getattr(p, k) - self.lr * getattr(g, k))
         return params, {}
 
 
@@ -45,7 +49,13 @@ class Adam(Optimizer):
             opt_params.append(empty)
         return opt_params
 
-    def step(self, params, grads, opt_params):
+    @partial
+    def step(
+        self,
+        opt_params,
+        params,
+        grads,
+    ):
         for o, p, g in zip(opt_params, params, grads):
             for k in p.keys():
                 o[k]["m"] = self.beta_one * o[k]["m"] + (1 - self.beta_one) * g[k]

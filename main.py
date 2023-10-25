@@ -5,16 +5,16 @@ import jax.nn
 import jax.random
 import jax.numpy as jnp
 
-from santo.model import MLP, Embedding, Sequential, ReLU, LogSoftmax
+from santo.model import MLP, SelfAttention, Embedding, Sequential, ReLU, LogSoftmax
 from santo.dataset import PlayByPlayDataset, batch
-from santo.opt import Adam
+from santo.opt import Adam, SGD
 from santo.updates import TOTAL
 
 
 def compute_loss(params, model, data, targets):
     mask = data != -1
 
-    logits = model(params, data)
+    logits = model(params)(data)
 
     target_one_hot = jax.nn.one_hot(targets, num_classes=vocab_size)
 
@@ -33,7 +33,7 @@ def eval_model(eval_data, params, model):
 
         mask = data != -1
 
-        logits = model(params, data)
+        logits = model(params)(data)
         predictions = jnp.argmax(logits, axis=2)
 
         batch_correct = ((predictions == targets) * mask).sum()
@@ -49,12 +49,19 @@ vocab_size = len(TOTAL)
 key = jax.random.PRNGKey(0)
 
 layers = Sequential(
-    [Embedding(vocab_size, 16), ReLU(), MLP(16, vocab_size), LogSoftmax()]
+    [
+        Embedding(vocab_size, 16),
+        ReLU(),
+        # SelfAttention(16, 16, 16),
+        ReLU(),
+        MLP(16, vocab_size),
+        LogSoftmax(),
+    ]
 )
 params = layers.initialize(key)
 
-opt = Adam(lr=1e-2)
-opt_params = Adam.intialize(params)
+opt = SGD(lr=1e-2)
+opt_params = SGD.intialize(params)
 
 train_data = PlayByPlayDataset([2013, 2014, 2015])
 eval_data = PlayByPlayDataset([2016])
@@ -68,8 +75,7 @@ for data in batch(key, train_data, 8):
     data = data[:, :-1]
 
     loss, grads = jax.value_and_grad(compute_loss)(params, layers, data, targets)
-
-    params, opt_params = opt.step(params, grads, opt_params)
+    params, opt_params = opt.step(opt_params)(params, grads)
 
     print(loss)
 
