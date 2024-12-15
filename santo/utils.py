@@ -29,6 +29,17 @@ def load_game_log(path: str) -> pd.DataFrame:
     ]
     return data
 
+class Position(Enum):
+    PITCHER: int = 1
+    CATCHER: int = 2
+    FIRST_BASEMAN: int = 3
+    SECOND_BASEMAN: int = 4
+    THIRD_BASEMAN: int = 5
+    SHORTSTOP: int = 6
+    LEFT_FIELDER: int = 7
+    CENTER_FIELDER: int = 8
+    RIGHT_FIELDER: int = 9
+    UNKNOWN: int = 10
 
 class Base(Enum):
     BATTER: int = 0
