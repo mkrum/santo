@@ -1,11 +1,11 @@
 start: (event modifier* advancements?)
 
 BATTER: "B"
-FIRST_BASE: "1"
-SECOND_BASE: "2"
-THIRD_BASE: "3"
+FIRST: "1"
+SECOND: "2"
+THIRD: "3"
 HOME: "H"
-base: BATTER | FIRST_BASE | SECOND_BASE | THIRD_BASE | HOME
+base: BATTER | FIRST | SECOND | THIRD | HOME
 
 PITCHER: "1"
 CATCHER: "2"
@@ -36,6 +36,7 @@ SACRIFICE: "SH"
 MODIFIERS: "AP" | "BP" | "BG" | "BGDP" | "BINT" | "BL" | "BOOT" | "BP" | "BPDP" | "BR" | "C" | "COUB" | "COUF" | "COUR" | "DP" | "F" | "FDP" | "FINT" | "FL" | "FO" | "G" | "GDP" | "GTP" | "IF" | "INT" | "IPHR" | "L" | "LDP" | "LTP" | "MREV" | "NDP" | "OBS" | "P" | "PASS" | "RINT" | "SF" | "SH" | "TH" | "TP" | "UINT" | "UREV" 
 THROW: "TH"
 RELAY: "R"
+
 special_modifiers: THROW base? | RELAY base | GENERIC_ERROR position
 
 modifier: "/" ((MODIFIERS? HIT_LOCATION?) | special_modifiers)

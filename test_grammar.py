@@ -1,81 +1,64 @@
 
-from typing import Any
+from typing import Any, List, Optional
 
 from dataclasses import dataclass, field
 
-from lark import Lark
+from lark import Lark, Transformer
 
-from santo.utils import Base, Position
+from santo.utils import Base, Position, HitLocation, ModifierCode
 from santo.updates import RunnerAdvance
-
 
 from dataclasses import dataclass, field
 from typing import List, Optional, Union
 
 @dataclass
-class Advancement:
-    from_base: str
-    to_base: str
-    success: bool
-    modifiers: Optional[List[str]] = field(default_factory=list)
-
-@dataclass
 class Modifier:
-    type: str
-    location: Optional[str] = None
-    throw_base: Optional[str] = None
-    relay_base: Optional[str] = None
-    error_position: Optional[str] = None
+    modifier: ModifierCode
+    location: Optional[HitLocation] = None
+    base: Optional[Base] = None
+    player: Optional[Position] = None
 
 @dataclass
 class Event:
-    type: str
-    details: Optional[Union[str, List[str]]] = None
-
-@dataclass
-class Play:
-    event: Event
-    modifiers: List[Modifier] = field(default_factory=list)
-    advancements: List[Advancement] = field(default_factory=list)
-
-from lark import Transformer
+    event: Any
+    modifiers: List[Modifier] = None
+    advancements: List[RunnerAdvance] = None
 
 class PlayTransformer(Transformer):
 
-    def event(self, items):
-        return Event(type=items[0], details=items[1:] if len(items) > 1 else None)
+    def HIT_LOCATION(self, items):
+        location = items[0]
+        return getattr(HitLocation, location)
+
+    def MODIFIERS(self, items):
+        modifier = items[0]
+        return getattr(ModifierCode, modifier)
 
     def modifier(self, items):
-        if items[0] in {"TH", "R"}:  # Special modifiers
-            return Modifier(type=items[0], throw_base=items[1] if len(items) > 1 else None)
-        elif items[0].startswith("E"):
-            return Modifier(type=items[0], error_position=items[1] if len(items) > 1 else None)
-        else:
-            return Modifier(type=items[0], location=items[1] if len(items) > 1 else None)
+        code = items[0] 
 
-    def BATTER(self, tok):
-        return Base.BATTER
+        location = None
+        base = None
+        player = None
+        if len(items) > 1:
+            additional_info = items[1]
+            if isinstance(additional_info, Base):
+                base = additional_info
+            elif isinstance(additional_info, Position):
+                player = additional_info
+            elif isinstance(additional_info, HitLocation):
+                location = additional_info
+            else:
+                throw(f"Not sure how to handle this modifer info: {additional_info}")
 
-    def FIRST_BASE(self, tok):
-        return Base.FIRST
-
-    def SECOND_BASE(self, tok):
-        return Base.SECOND
-
-    def THIRD_BASE(self, tok):
-        return Base.THIRD
-
-    def HOME(self, tok):
-        return Base.HOME
+        assert len(items) <= 2
+        return Modifier(code, location=location, base=base, player=player)
 
     def base(self, items):
         return items[0]
 
-    def SHORTSTOP(self, tok):
-        return Position.SHORTSTOP
-
     def position(self, items):
-        return items[0]
+        return getattr(Position, items[0].type)
 
     def succesful_advancement(self, items):
         return RunnerAdvance(*items, is_out=False, explicit=True)
@@ -89,6 +72,30 @@ class PlayTransformer(Transformer):
     def advancements(self, items):
         return items
 
+    def start(self, items):
+        event = items[0]
+
+        modifiers = None
+        advancements = None
+
+        for i in items[1:]:
+            if isinstance(i, list) and isinstance(i[0], RunnerAdvance):
+                advancements = i
+            else:
+                modifiers = i
+
+        return Event(event, modifiers, advancements)
+
+    def event(self, items):
+        print(items)
+        return items[0]
+
+    def event(self, items):
+
+# Add bases
+for base in Base:
+    setattr(PlayTransformer, base.name, lambda self, tok: base)
+
 # Define the grammar
 grammar = open("grammar.lark", "r").read()
 parser = Lark(grammar, start='start', parser='lalr', debug=True)
@@ -99,6 +106,7 @@ strings = ["E6/G6.3-H(RBI);2-3;B-1"]
 
 for s in strings:
     out = parser.parse(s)
+    #print(out)
     data = transformer.transform(out)
     print(data)
     exit()
