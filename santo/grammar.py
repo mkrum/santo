@@ -4,30 +4,11 @@ from dataclasses import dataclass, field
 
 from lark import Lark, Transformer
 
-from santo.utils import Base, Position, HitLocation, ModifierCode
+from santo.utils import Base, Position, HitLocation, ModifierCode, Modifier
 from santo.updates import RunnerAdvance
+from santo.events import *
 
-@dataclass(frozen=True)
-class OutEvent:
-    positions: List[Position]
-    player: Base
 
-@dataclass(frozen=True)
-class MultiOutPlay:
-    outs: List[OutEvent]
-
-@dataclass(frozen=True)
-class Modifier:
-    modifier: ModifierCode
-    location: Optional[HitLocation] = None
-    base: Optional[Base] = None
-    player: Optional[Position] = None
-
-@dataclass(frozen=True)
-class Item:
-    event: Any
-    modifiers: List[Modifier] = field(default_factory=lambda: [])
-    advancements: List[RunnerAdvance] = field(default_factory=lambda: [])
 
 class PlayTransformer(Transformer):
 
@@ -58,6 +39,13 @@ class PlayTransformer(Transformer):
 
         assert len(items) <= 2
         return Modifier(code, location=location, base=base, player=player)
+
+    def hit(self, items):
+        assert len(items) == 1
+        return items[0]
+
+    def single(self, items):
+        return SingleEvent(items[0]) if len(items) > 0 else SingleEvent()
 
     def base(self, items):
         return getattr(Base, items[0].type)
@@ -119,7 +107,7 @@ class PlayTransformer(Transformer):
         return OutEvent(old_out, batter_out)
 
     def double_play(self, items):
-        return MultiOutPlay(items)
+        return MultiOutEvent(items)
 
     def triple_play(self, items):
-        return MultiOutPlay(items)
+        return MultiOutEvent(items)

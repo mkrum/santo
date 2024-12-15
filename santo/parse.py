@@ -1,10 +1,11 @@
-from santo.events import *
-from santo.game import GameState
 import logging
 import re
 
-from santo.updates import InningBreak, PlayBreak, GameBreak
+from lark import Lark
 
+from santo.events import *
+from santo.game import GameState
+from santo.updates import InningBreak, PlayBreak, GameBreak
 
 def parse_event_string(play_str: str) -> Event:
     events_strs = play_str.split("/")
@@ -122,6 +123,7 @@ def parse_event_string(play_str: str) -> Event:
 
     else:
         raise ValueError(f"Syntax error parsing {play_str}")
+
     event = event_type.from_string(play_str)
     logging.debug(event)
     return event

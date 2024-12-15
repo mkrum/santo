@@ -1,6 +1,6 @@
 import re
 from typing import List, Set, Any
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from itertools import product
 from santo.utils import Base
@@ -68,7 +68,7 @@ class RunnerAdvance(Update):
     to_base: Base
     is_out: bool
     explicit: bool = False
-    modifications: Any = None
+    modifications: Any = field(default_factory=lambda: [])
 
     @classmethod
     def from_string(cls, raw_string: str) -> "RunnerAdvance":

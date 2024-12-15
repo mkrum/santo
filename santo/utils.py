@@ -1,5 +1,8 @@
+
 import pandas as pd
 from enum import Enum
+from dataclasses import dataclass
+from typing import Optional, List
 
 import functools
 
@@ -237,3 +240,10 @@ HitLocation= Enum(
         "89XD"
     ],
 )
+
+@dataclass(frozen=True)
+class Modifier:
+    modifier: ModifierCode
+    location: Optional[HitLocation] = None
+    base: Optional[Base] = None
+    player: Optional[Position] = None

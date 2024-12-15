@@ -1,13 +1,53 @@
 import re
-from typing import List, Set
+from typing import List, Set, Optional
 from itertools import product
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
-from santo.utils import Base
+from santo.utils import Base, Modifier, Position
 from santo.game import GameState
 from santo.updates import RunnerAdvance
 
+@dataclass(frozen=True)
+class Event:
+    def advances(self) -> [RunnerAdvance]:
+        ...
 
+@dataclass(frozen=True)
+class Item:
+    event: Event
+    modifiers: List[Modifier] = field(default_factory=lambda: [])
+    advancements: List[RunnerAdvance] = field(default_factory=lambda: [])
+
+    def get_runners(self) -> List[str]:
+        return self.advancements
+
+    def handle_runners(
+        self, state, other_runners: List[RunnerAdvance] = None
+    ) -> GameState:
+
+        new_state = state
+
+        runners = self.advancements + self.event.advances()
+
+        # Runners make sure runners are sorted, can get messed up sometimes
+        runners = sorted(runners, key=lambda k: k.from_base.value, reverse=True)
+
+        if other_runners:
+            runners = simplify_runner_advances(runners + other_runners)
+
+        for advance_runners in runners:
+            new_state = advance_runners(new_state)
+
+        return new_state
+
+    def __call__(self, state: GameState) -> GameState:
+        """
+        By Default, an event will just look at the notation for advancing
+        runners, and and advance those runners.
+        """
+        return self.handle_runners(state)
+
+    
 def force_advance(state, base: Base) -> GameState:
     # If there is a runner on the base we are trying to move to, first move
     # that runner
@@ -89,145 +129,76 @@ def get_valid_advances(state):
 
 
 @dataclass(frozen=True)
-class Event:
-    raw_string: str
-
-    def get_runners(self) -> List[str]:
-        if not ("." in self.raw_string):
-            return []
-
-        runners = self.raw_string.split(".")[-1].split(";")
-        advances = list(map(RunnerAdvance.from_string, runners))
-        return advances
-
-    def handle_runners(
-        self, state, other_runners: List[RunnerAdvance] = None
-    ) -> GameState:
-        new_state = state
-
-        runners = self.get_runners()
-        # Runners make sure runners are sorted, can get messed up sometimes
-        runners = sorted(runners, key=lambda k: k.from_base.value, reverse=True)
-
-        if other_runners:
-            runners = simplify_runner_advances(runners + other_runners)
-
-        for advance_runners in runners:
-            new_state = advance_runners(new_state)
-
-        return new_state
-
-    @classmethod
-    def from_string(cls, play_string: str) -> "Event":
-        return cls(play_string)
-
-    def __call__(self, state: GameState) -> GameState:
-        """
-        By Default, an event will just look at the notation for advancing
-        runners, and and advance those runners.
-        """
-        return self.handle_runners(state)
-
-    def has_error(self):
-        # I think this works?
-        return "E" in self.raw_string
-
-
-@dataclass(frozen=True)
 class IdentityEvent(Event):
-    raw_string: str = ""
-
-    def __call__(self, state: GameState) -> GameState:
-        return state
+    def advances(self) -> [RunnerAdvance]:
+        return []
 
 
 @dataclass(frozen=True)
 class OutEvent(Event):
-    def get_players_out(self) -> List[RunnerAdvance]:
-        players_out = set()
+    positions: List[Position]
+    player: Base
 
-        play_string = self.raw_string.split("/")[0].split(".")[0]
+    def advances(self):
+       return [RunnerAdvance(self.player, self.player.next_base(), is_out=True)]
 
-        # Sanitize play string of the weird unnessecary annotations
-        play_string = play_string.replace("!", "")
-        play_string = play_string.replace("?", "")
-        play_string = play_string.replace("+", "")
-        play_string = play_string.replace("-", "")
+@dataclass(frozen=True)
+class MultiOutEvent(Event):
+    outs: List[OutEvent]
 
-        marked = re.findall(r"\((.*?)\)", play_string)
+    def advances(self):
 
-        # Sometimes these also notify whether the run was earned or not or
-        # have other, strange markings
-        marked = list(filter(lambda x: (x in ["B", "1", "2", "3", "H"]), marked))
-
-        runners = list(map(Base.from_short_string, marked))
-
-        for r in runners:
-            players_out.add(RunnerAdvance(r, r.next_base(), True))
-
-        # If the string ends in a number and no marking, it is assumed to be the
-        # Batter. For example, 64(1)3 is two outs, not one.
-        if play_string[-1] != ")" and not ("E" in play_string):
-            players_out.add(RunnerAdvance(Base.BATTER, Base.FIRST, True))
-
-        return list(players_out)
-
-    def __call__(self, state: GameState) -> GameState:
-        players_out = self.get_players_out()
+        advances = sum([o.advances() for o in self.outs])
 
         # If the batter is not listed as being out, it is implicitily a single
-        if not any([r.from_base == Base.BATTER for r in players_out]):
-            players_out.append(RunnerAdvance(Base.BATTER, Base.FIRST, False))
+        if not any([r.from_base == Base.BATTER for r in advances]):
+            advances.append(RunnerAdvance(Base.BATTER, Base.FIRST, False))
 
-        return self.handle_runners(state, players_out)
-
+        return advances
 
 @dataclass(frozen=True)
 class StrikeOutEvent(Event):
-    def _handle_plus(self):
-        other_event_str = self.raw_string.split("+")[1]
 
-        if other_event_str[:2] == "CS":
-            other_event = CaughtStealingEvent.from_string(other_event_str)
-        elif other_event_str[:2] == "SB":
-            other_event = StolenBaseEvent.from_string(other_event_str)
-        elif other_event_str[:2] == "WP":
-            other_event = WildPitchEvent.from_string(other_event_str)
-        elif other_event_str[:2] == "PB":
-            other_event = PassedBallEvent.from_string(other_event_str)
-        elif other_event_str[:2] == "OA":
-            other_event = OtherAdvanceEvent.from_string(other_event_str)
-        elif other_event_str[:4] == "POCS":
-            other_event = PickedOffCaughtStealingEvent.from_string(other_event_str)
-        elif other_event_str[:2] == "PO":
-            other_event = PickedOffEvent.from_string(other_event_str)
-        elif other_event_str[:2] == "DI":
-            other_event = DefensiveIndifferenceEvent.from_string(other_event_str)
-        elif other_event_str[0] == "E":
-            other_event = SecondaryErrorEvent.from_string(other_event_str)
-        else:
-            # I am using an "assert False" here, since I think we are only
-            # catching Assertion errors to differentiate between parsing
-            # errors and programmatic errors.
-            assert False, f"unknown event {other_event}"
+    def advances(self):
+        # But, a K is not always an out! A batter can advance to fist on a wild
+        # pitch. This will need to be explicitly stated. So, this should get overwritten if that is the case
+        return RunnerAdvance(Base.BATTER, Base.FIRST, False)
 
-        return other_event
+#@dataclass(frozen=True)
+#class StrikeOutEvent(Event):
+#    def _handle_plus(self):
+#        other_event_str = self.raw_string.split("+")[1]
+#
+#        if other_event_str[:2] == "CS":
+#            other_event = CaughtStealingEvent.from_string(other_event_str)
+#        elif other_event_str[:2] == "SB":
+#            other_event = StolenBaseEvent.from_string(other_event_str)
+#        elif other_event_str[:2] == "WP":
+#            other_event = WildPitchEvent.from_string(other_event_str)
+#        elif other_event_str[:2] == "PB":
+#            other_event = PassedBallEvent.from_string(other_event_str)
+#        elif other_event_str[:2] == "OA":
+#            other_event = OtherAdvanceEvent.from_string(other_event_str)
+#        elif other_event_str[:4] == "POCS":
+#            other_event = PickedOffCaughtStealingEvent.from_string(other_event_str)
+#        elif other_event_str[:2] == "PO":
+#            other_event = PickedOffEvent.from_string(other_event_str)
+#        elif other_event_str[:2] == "DI":
+#            other_event = DefensiveIndifferenceEvent.from_string(other_event_str)
+#        elif other_event_str[0] == "E":
+#            other_event = SecondaryErrorEvent.from_string(other_event_str)
+#        else:
+#            # I am using an "assert False" here, since I think we are only
+#            # catching Assertion errors to differentiate between parsing
+#            # errors and programmatic errors.
+#            assert False, f"unknown event {other_event}"
+#
+#        return other_event
 
-    def __call__(self, state: GameState) -> GameState:
-        # A K is not always an out! A batter can advance to fist on a wild pitch
-        new_state = state
-        if not any([r.from_base == Base.BATTER for r in self.get_runners()]):
-            new_state = new_state.add_out(Base.BATTER)
-
-        if len(self.raw_string) > 1 and "+" in self.raw_string:
-            other_event = self._handle_plus()
-            return other_event(new_state)
-        else:
-            return self.handle_runners(new_state)
 
 
 @dataclass(frozen=True)
-class WalkEvent(StrikeOutEvent):
+class WalkEvent(Event):
     def __call__(self, state: GameState) -> GameState:
         new_state = state
 
@@ -248,155 +219,107 @@ class WalkEvent(StrikeOutEvent):
             else:
                 return force_advance(new_state, Base.BATTER)
 
-
 @dataclass(frozen=True)
 class HitEvent(Event):
-    @property
-    def hit_type(self):
-        return self.raw_string[0]
-
-    @classmethod
-    def from_string(cls, string: str) -> "HitEvent":
-        hit_type = string[0]
-        assert hit_type in ["S", "D", "T"], f"Unkown hit type {hit_type}"
-        if hit_type == "S":
-            return SingleEvent(string)
-        elif hit_type == "D":
-            return DoubleEvent(string)
-        elif hit_type == "T":
-            return TrippleEvent(string)
-
-    def __call__(self, state: GameState) -> GameState:
-        hit_type = self.hit_type
-        assert hit_type in ["S", "D", "T"], f"Unkown hit type {hit_type}"
-        if hit_type == "S":
-            advance = RunnerAdvance(Base.BATTER, Base.FIRST, False)
-        elif hit_type == "D":
-            advance = RunnerAdvance(Base.BATTER, Base.SECOND, False)
-        elif hit_type == "T":
-            advance = RunnerAdvance(Base.BATTER, Base.THIRD, False)
-        return self.handle_runners(state, [advance])
-
-    def is_hit_type(self, advancement):
-        ...
-
+    fielded: Optional[Position] = None
 
 @dataclass(frozen=True)
 class SingleEvent(HitEvent):
-    @classmethod
-    def is_hit_type(cls, advancement):
-        return (
-            advancement.from_base == Base.BATTER and advancement.to_base >= Base.FIRST
-        )
-
+    def advances(self):
+        return [RunnerAdvance(Base.BATTER, Base.FIRST, False)]
 
 @dataclass(frozen=True)
 class DoubleEvent(HitEvent):
-    @classmethod
-    def is_hit_type(self, advancement):
-        return (
-            advancement.from_base == Base.BATTER and advancement.to_base >= Base.SECOND
-        )
-
+    def advances(self):
+        return [RunnerAdvance(Base.BATTER, Base.SECOND, False)]
 
 @dataclass(frozen=True)
-class TrippleEvent(HitEvent):
-    @classmethod
-    def is_hit_type(self, advancement):
-        return (
-            advancement.from_base == Base.BATTER and advancement.to_base >= Base.THIRD
-        )
-
+class TripleEvent(HitEvent):
+    def advances(self):
+        return [RunnerAdvance(Base.BATTER, Base.THIRD, False)]
 
 @dataclass(frozen=True)
 class StolenBaseEvent(Event):
-    def __call__(self, state: GameState) -> GameState:
-        sb_strings = self.raw_string.split(";")
 
-        advances = []
-        for sb_string in sb_strings:
-            # If an error happends, runner advancements will be listed normally
-            if sb_string[:2] != "SB":
-                continue
+    stolen_base: Base
 
-            stolen_base = sb_string[2]
-
-            if stolen_base == "2":
-                advance = RunnerAdvance(Base.FIRST, Base.SECOND, False)
-            elif stolen_base == "3":
-                advance = RunnerAdvance(Base.SECOND, Base.THIRD, False)
-            elif stolen_base == "H":
-                advance = RunnerAdvance(Base.THIRD, Base.HOME, False)
-            advances.append(advance)
-
-        return self.handle_runners(state, advances)
-
+    def advances(self): 
+        return RunnerAdvance(self.stolen_base.last_base, self.stolen_base, False)
 
 @dataclass(frozen=True)
 class CaughtStealingEvent(Event):
-    def _get_base(self, string):
-        stolen_base = string[2]
-        return stolen_base
+    stolen_base: Base
 
-    def __call__(self, state: GameState) -> GameState:
-        cs_strings = list(filter(lambda x: "CS" in x, self.raw_string.split(";")))
+    def advances(self): 
+        return RunnerAdvance(self.stolen_base.last_base, self.stolen_base, True)
 
-        new_state = state
-        advances = []
-        for cs_string in cs_strings:
-            stolen_base = self._get_base(cs_string)
+    #def _get_base(self, string):
+    #    stolen_base = string[2]
+    #    return stolen_base
 
-            modifer_strings = re.findall(r"\((.*?)\)", cs_string)
-            is_out = True
+    #def __call__(self, state: GameState) -> GameState:
+    #    cs_strings = list(filter(lambda x: "CS" in x, self.raw_string.split(";")))
 
-            if any([("E" in m) for m in modifer_strings]):
-                additional_out_string = re.findall(r"\((\d*?)\)", self.raw_string)
-                is_out = len(additional_out_string) != 0
+    #    new_state = state
+    #    advances = []
+    #    for cs_string in cs_strings:
+    #        stolen_base = self._get_base(cs_string)
 
-            if stolen_base == "2":
-                advances.append(RunnerAdvance(Base.FIRST, Base.SECOND, is_out))
-            elif stolen_base == "3":
-                advances.append(RunnerAdvance(Base.SECOND, Base.THIRD, is_out))
-            elif stolen_base == "H":
-                advances.append(RunnerAdvance(Base.THIRD, Base.HOME, is_out))
+    #        modifer_strings = re.findall(r"\((.*?)\)", cs_string)
+    #        is_out = True
 
-        new_state = self.handle_runners(new_state, advances)
-        return new_state
+    #        if any([("E" in m) for m in modifer_strings]):
+    #            additional_out_string = re.findall(r"\((\d*?)\)", self.raw_string)
+    #            is_out = len(additional_out_string) != 0
+
+    #        if stolen_base == "2":
+    #            advances.append(RunnerAdvance(Base.FIRST, Base.SECOND, is_out))
+    #        elif stolen_base == "3":
+    #            advances.append(RunnerAdvance(Base.SECOND, Base.THIRD, is_out))
+    #        elif stolen_base == "H":
+    #            advances.append(RunnerAdvance(Base.THIRD, Base.HOME, is_out))
+
+    #    new_state = self.handle_runners(new_state, advances)
+    #    return new_state
+
 
 
 @dataclass(frozen=True)
 class PickedOffEvent(Event):
-    def __call__(self, state: GameState) -> GameState:
-        pickoff_base = self.raw_string[2]
 
-        play_string = self.raw_string.split("/")[0].split(".")[0]
+    pickoff_base: Base
 
-        if "E" in play_string:
-            return self.handle_runners(state)
-        elif pickoff_base == "1":
-            advance = RunnerAdvance(Base.FIRST, Base.FIRST, True)
-        elif pickoff_base == "2":
-            advance = RunnerAdvance(Base.SECOND, Base.SECOND, True)
-        elif pickoff_base == "3":
-            advance = RunnerAdvance(Base.THIRD, Base.THIRD, True)
+    def advances(self): 
+        return [RunnerAdvance(self.pickoff_base, self.pickoff_base, is_out=True)]
 
-        return self.handle_runners(state, [advance])
+    #def __call__(self, state: GameState) -> GameState:
+    #    pickoff_base = self.raw_string[2]
+
+    #    play_string = self.raw_string.split("/")[0].split(".")[0]
+
+    #    if "E" in play_string:
+    #        return self.handle_runners(state)
+    #    elif pickoff_base == "1":
+    #        advance = RunnerAdvance(Base.FIRST, Base.FIRST, True)
+    #    elif pickoff_base == "2":
+    #        advance = RunnerAdvance(Base.SECOND, Base.SECOND, True)
+    #    elif pickoff_base == "3":
+    #        advance = RunnerAdvance(Base.THIRD, Base.THIRD, True)
+
+    #    return self.handle_runners(state, [advance])
 
 
 @dataclass(frozen=True)
 class FieldersChoiceEvent(Event):
-    def __call__(self, state: GameState) -> GameState:
-        # FC indicates an implict B-1
-        advance = [RunnerAdvance(Base.BATTER, Base.FIRST, False)]
-        return self.handle_runners(state, advance)
 
+    def advances(self): 
+        return [RunnerAdvance(Base.BATTER, Base.FIRST, False)]
 
 @dataclass(frozen=True)
 class CatcherInterferenceEvent(Event):
-    def __call__(self, state: GameState) -> GameState:
-        advance = [RunnerAdvance(Base.BATTER, Base.FIRST, False)]
-        return self.handle_runners(state, advance)
 
+    def advances(self): 
+        return [RunnerAdvance(Base.BATTER, Base.FIRST, False)]
 
 @dataclass(frozen=True)
 class PickedOffCaughtStealingEvent(CaughtStealingEvent):
