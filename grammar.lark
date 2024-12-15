@@ -1,5 +1,7 @@
 start: (event modifier* advancements?)
 
+%ignore " "  // Ignore spaces if applicable
+
 BATTER: "B"
 FIRST: "1"
 SECOND: "2"
@@ -20,7 +22,6 @@ UNKNOWN: "U"
 
 position: PITCHER | CATCHER | FIRST_BASEMAN | SECOND_BASEMAN | THIRD_BASEMAN | SHORTSTOP | LEFT_FIELDER | CENTER_FIELDER | RIGHT_FIELDER | UNKNOWN
 
-HIT_TYPE: "G" | "F" | "P" | "L" | "GDP" | "LDP" | "BG" | "GTP" | "LTP"
 HIT_LOCATION: "2F" | "25F" | "25" | "1S" | "23" | "23F" | "5S" | "58S" | "15" | "1" | "13" | "34S" | "3S" | "6S" | "6MS" | "4MS" | "4S" | "34S" | "3S" | "5F" | "5" | "56" | "6" | "6M" | "4M" | "4" | "34" | "3" | "3F" | "5DF" | "5D" | "58D" | "6D" | "6MD" | "4MD" | "4D" | "34D" | "3D" | "3DF" | "7LSF" | "7LS" | "7S" | "78S" | "8S" | "89S" | "9S" | "9LS" | "9LSF" | "7LF" | "7L" | "7" | "78" | "8" | "89" | "9" | "9L" | "9LF" | "7LDF" | "7LD" | "7D" | "78D" | "8D" | "89D" | "9D" | "9LD" | "9LDF" | "78XD" | "8XD" | "89XD"
 
 succesful_advancement: base "-" base
@@ -33,13 +34,13 @@ advancements: "." advancement (";" advancement)*
 FORCE_OUT: "FO"
 SACRIFICE: "SH"
 
-MODIFIERS: "AP" | "BP" | "BG" | "BGDP" | "BINT" | "BL" | "BOOT" | "BP" | "BPDP" | "BR" | "C" | "COUB" | "COUF" | "COUR" | "DP" | "F" | "FDP" | "FINT" | "FL" | "FO" | "G" | "GDP" | "GTP" | "IF" | "INT" | "IPHR" | "L" | "LDP" | "LTP" | "MREV" | "NDP" | "OBS" | "P" | "PASS" | "RINT" | "SF" | "SH" | "TH" | "TP" | "UINT" | "UREV" 
+MODIFIERS: "AP" | "BP" | "BG" | "BGDP" | "BINT" | "BL" | "BOOT" | "BP" | "BPDP" | "BR" | "C" | "COUB" | "COUF" | "COUR" | "DP" | "F" | "FDP" | "FINT" | "FL" | "FO" | "GDP" | "G" | "GTP" | "IF" | "INT" | "IPHR" | "L" | "LDP" | "LTP" | "MREV" | "NDP" | "OBS" | "P" | "PASS" | "RINT" | "SF" | "SH" | "TH" | "TP" | "UINT" | "UREV" 
 THROW: "TH"
 RELAY: "R"
 
 special_modifiers: THROW base? | RELAY base | GENERIC_ERROR position
 
-modifier: "/" ((MODIFIERS? HIT_LOCATION?) | special_modifiers)
+modifier: "/" (MODIFIERS? HIT_LOCATION? | special_modifiers ) 
 
 single: "S" (position?) 
 double: "D" (position?)
@@ -51,10 +52,11 @@ hit: single | double | triple | HOMER | GROUND_RULE_DOUBLE | HIT_BY_PITCH
 
 unassisted_out: position
 assisted_out: position position+
-fielded_out: (assisted_out | unassisted_out)
-double_play: fielded_out ("(" base ")") fielded_out?
-triple_play: double_play ("(" base ")") fielded_out?
-quad_play: triple_play ("(" base ")") fielded_out?
+unspecified_out: (assisted_out | unassisted_out)
+specified_out: unspecified_out "(" base ")"
+double_play: specified_out unspecified_out?
+triple_play: specified_out specified_out unspecified_out?
+quad_play: specified_out specified_out specified_out
 
 strike_out: "K" | ("K+" event)
 out: unassisted_out | assisted_out | double_play | triple_play | quad_play | strike_out

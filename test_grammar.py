@@ -7,19 +7,29 @@ from lark import Lark, Transformer
 
 from santo.utils import Base, Position, HitLocation, ModifierCode
 from santo.updates import RunnerAdvance
+from santo.events import Event
 
 from dataclasses import dataclass, field
 from typing import List, Optional, Union
 
-@dataclass
+@dataclass(frozen=True)
+class OutEvent:
+    positions: List[Position]
+    player: Base
+
+@dataclass(frozen=True)
+class MultiOutPlay:
+    outs: List[OutEvent]
+
+@dataclass(frozen=True)
 class Modifier:
     modifier: ModifierCode
     location: Optional[HitLocation] = None
     base: Optional[Base] = None
     player: Optional[Position] = None
 
-@dataclass
-class Event:
+@dataclass(frozen=True)
+class Item:
     event: Any
     modifiers: List[Modifier] = None
     advancements: List[RunnerAdvance] = None
@@ -27,14 +37,15 @@ class Event:
 class PlayTransformer(Transformer):
 
     def HIT_LOCATION(self, items):
-        location = items[0]
+        location = items
         return getattr(HitLocation, location)
 
     def MODIFIERS(self, items):
-        modifier = items[0]
+        modifier = items
         return getattr(ModifierCode, modifier)
 
     def modifier(self, items):
+        print(items)
         code = items[0] 
 
         location = None
@@ -55,19 +66,22 @@ class PlayTransformer(Transformer):
         return Modifier(code, location=location, base=base, player=player)
 
     def base(self, items):
-        return items[0]
+        return getattr(Base, items[0].type)
 
     def position(self, items):
         return getattr(Position, items[0].type)
 
     def succesful_advancement(self, items):
-        return RunnerAdvance(*items, is_out=False, explicit=True)
+        return dict(from_base=items[0], to_base=items[1], is_out=False, explicit=True)
 
     def unsuccesful_advancement(self, items):
-        return RunnerAdvance(*items, is_out=True, explicit=True)
+        return dict(from_base=items[0], to_base=items[1], is_out=True, explicit=True)
 
     def advancement(self, items):
-        return items[0]
+        print(items)
+        args = items[0]
+        modifications = items[1:]
+        return RunnerAdvance(**args, modifications=modifications)
 
     def advancements(self, items):
         return items
@@ -75,52 +89,64 @@ class PlayTransformer(Transformer):
     def start(self, items):
         event = items[0]
 
-        modifiers = None
+        modifiers = []
         advancements = None
 
         for i in items[1:]:
             if isinstance(i, list) and isinstance(i[0], RunnerAdvance):
                 advancements = i
             else:
-                modifiers = i
+                modifiers.append(i)
 
-        return Event(event, modifiers, advancements)
+        return Item(event, modifiers, advancements)
 
     def event(self, items):
-        print(items)
+        assert len(items) == 1
         return items[0]
 
-    def event(self, items):
+    def out(self, items):
+        assert len(items) == 1
+        return items[0]
 
-# Add bases
-for base in Base:
-    setattr(PlayTransformer, base.name, lambda self, tok: base)
+    def advance_modifier(self, items):
+        breakpoint()
+        return items
+
+    def assisted_out(self, items):
+        return OutEvent(items, Base.BATTER)
+
+    def unassisted_out(self, items):
+        return OutEvent(items, Base.BATTER)
+
+    def unspecified_out(self, items):
+        return OutEvent(items[0].positions, Base.BATTER)
+
+    def specified_out(self, items):
+        old_out = items[0].positions
+        batter_out = items[1]
+        return OutEvent(old_out, batter_out)
+
+    def double_play(self, items):
+        return MultiOutPlay(items)
+
+    def triple_play(self, items):
+        return MultiOutPlay(items)
 
 # Define the grammar
 grammar = open("grammar.lark", "r").read()
 parser = Lark(grammar, start='start', parser='lalr', debug=True)
 transformer = PlayTransformer()
 
-#strings = ["6", "6413", "64(1)3", "64(1)3(B)9", "4(1)3/G4/GDP", "8(B)84(2)/LDP/L8", "54(B)/BG25/SH.1-2", "1(B)16(2)63(1)/LTP/L1", "T9/F9LD.2-H", "S4/G34.2-H(E4/TH)(UR)(NR);1-3;B-2", "E6/G6.3-H(RBI);2-3;B-1", "S/L9S.3-H;2X3(5/INT);1-2", "K.1-2(WP)"]
-strings = ["E6/G6.3-H(RBI);2-3;B-1"]
+strings = ["6", "6413", "64(1)3", "64(1)3(B)9", "4(1)3/G4/GDP", "8(B)84(2)/LDP/L8", "54(B)/BG25/SH.1-2", "1(B)16(2)63(1)/LTP/L1", "T9/F9LD.2-H", "S4/G34.2-H(E4/TH)(UR)(NR);1-3;B-2", "E6/G6.3-H(RBI);2-3;B-1", "S/L9S.3-H;2X3(5/INT);1-2", "K.1-2(WP)"]
+#strings = ["4(1)3/G4/LDP"]
+strings= ["E6/G6.3-H(RBI);2-3;B-1"]
+#MultiOutPlay(outs=[OutEvent([Position.SECOND], Base.FIRST), OutEvent([Position.FIRST], BATTER.BATTER)], modifiers=Modifier(
 
 for s in strings:
+    print(s)
     out = parser.parse(s)
     #print(out)
     data = transformer.transform(out)
-    print(data)
-    exit()
-    #children = out.children
-
-    #event_data = children[0].children
-
-    #modifiers = None
-    #advancements = None
-    #for c in children[1:]:
-    #    if c.data == 'advancements':
-    #        advancements = c.children
-    #    if c.data == 'modifiers':
-    #        modifiers = c.children
-
-    #breakpoint()
-    #advances = parse_advances(advancements)
+    print(data.event)
+    print(data.modifiers)
+    print(data.advancements)

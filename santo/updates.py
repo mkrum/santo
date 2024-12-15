@@ -1,5 +1,5 @@
 import re
-from typing import List, Set
+from typing import List, Set, Any
 from dataclasses import dataclass
 
 from itertools import product
@@ -68,6 +68,7 @@ class RunnerAdvance(Update):
     to_base: Base
     is_out: bool
     explicit: bool = False
+    modifications: Any = None
 
     @classmethod
     def from_string(cls, raw_string: str) -> "RunnerAdvance":
