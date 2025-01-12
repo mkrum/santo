@@ -50,14 +50,12 @@ class PlayTransformer(Transformer):
                 throw(f"Not sure how to handle this modifer info: {additional_info}")
 
         assert len(items) <= 2
-        return Modifier(code, location=location, base=base, player=player)
 
-    def hit(self, items):
-        assert len(items) == 1
-        return items[0]
+        if isinstance(code, Position):
+            return Modifier(None, location=location, base=base, player=[code, player])
+        else:
+            return Modifier(code, location=location, base=base, player=player)
 
-    def single(self, items):
-        return SingleEvent(items[0]) if len(items) > 0 else SingleEvent()
 
     def base(self, items):
         return getattr(Base, items[0].type)
@@ -124,10 +122,26 @@ class PlayTransformer(Transformer):
     def triple_play(self, items):
         return MultiOutEvent(items)
 
+    def quad_play(self, items):
+        return MultiOutEvent(items)
+
     def error(self, items):
         location = items
         assert items[0].value == "E"
         return ErrorEvent(items[1])
 
-    def special_modifiers(self, items):
-        breakpoint()
+    def hit(self, items):
+        assert len(items) == 1
+        return items[0]
+
+    def single(self, items):
+        return SingleEvent(items[0]) if len(items) > 0 else SingleEvent()
+
+    def double(self, items):
+        return DoubleEvent(items[0]) if len(items) > 0 else DoubleEvent()
+
+    def triple(self, items):
+        return TripleEvent(items[0]) if len(items) > 0 else TripleEvent()
+
+    def strike_out(self, items):
+        return StrikeOutEvent(items[0]) if len(items) > 0 else StrikeOutEvent()

@@ -42,7 +42,7 @@ HIT_MODIFIER: "AP" | "BP" | "BG" | "BGDP" | "BINT" | "BL" | "BOOT" | "BP" | "BPD
 ADVANCE_MODIFIER: "NR" | "UR" | "RBI" | "TUR" | "PB" | "WP" 
 
 ERROR_MODIFIER: "E"
-modifier: (HIT_MODIFIER HIT_LOCATION? | THROW_MODIFIER base? | ERROR_MODIFIER position? | ADVANCE_MODIFIER)
+modifier: (HIT_MODIFIER HIT_LOCATION? | THROW_MODIFIER base? | ERROR_MODIFIER position? | ADVANCE_MODIFIER | position+ )
 
 single: "S" (position?) 
 double: "D" (position?)

@@ -130,6 +130,8 @@ ModifierCode = Enum(
      "E",
      "UR",
      "NR",
+     "WP",
+     "PB",
      "TUR",
      "BP",
      "BG",
