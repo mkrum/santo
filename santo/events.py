@@ -343,6 +343,9 @@ class HomeRunEvent(Event):
 
 @dataclass(frozen=True)
 class ErrorEvent(Event):
+
+    position: Position = None
+
     def __call__(self, state: GameState) -> GameState:
         advance = RunnerAdvance(Base.BATTER, Base.FIRST, False)
         return self.handle_runners(state, [advance])

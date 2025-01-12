@@ -1,4 +1,4 @@
-start: (event modifier* advancements?)
+start: (event ("/" modifier)* advancements?)
 
 %ignore " "  // Ignore spaces if applicable
 
@@ -27,20 +27,22 @@ HIT_LOCATION: "2F" | "25F" | "25" | "1S" | "23" | "23F" | "5S" | "58S" | "15" | 
 succesful_advancement: base "-" base
 unsuccesful_advancement: base "X" base
 
-advance_modifier: "NR" | "UR" | "RBI" | "TUR" | "PB" | "WP" | (GENERIC_ERROR position?) | out
-advancement: (succesful_advancement | unsuccesful_advancement) ("(" advance_modifier modifier? ")")*
+advancement: (succesful_advancement | unsuccesful_advancement) ("(" modifier ("/" modifier)* ")")*
 advancements: "." advancement (";" advancement)*
 
 FORCE_OUT: "FO"
 SACRIFICE: "SH"
 
-MODIFIERS: "AP" | "BP" | "BG" | "BGDP" | "BINT" | "BL" | "BOOT" | "BP" | "BPDP" | "BR" | "C" | "COUB" | "COUF" | "COUR" | "DP" | "F" | "FDP" | "FINT" | "FL" | "FO" | "GDP" | "G" | "GTP" | "IF" | "INT" | "IPHR" | "L" | "LDP" | "LTP" | "MREV" | "NDP" | "OBS" | "P" | "PASS" | "RINT" | "SF" | "SH" | "TH" | "TP" | "UINT" | "UREV" 
 THROW: "TH"
 RELAY: "R"
+THROW_MODIFIER: THROW | RELAY
 
-special_modifiers: THROW base? | RELAY base | GENERIC_ERROR position
+HIT_MODIFIER: "AP" | "BP" | "BG" | "BGDP" | "BINT" | "BL" | "BOOT" | "BP" | "BPDP" | "BR" | "C" | "COUB" | "COUF" | "COUR" | "DP" | "F" | "FDP" | "FINT" | "FL" | "FO" | "GDP" | "G" | "GTP" | "IF" | "INT" | "IPHR" | "L" | "LDP" | "LTP" | "MREV" | "NDP" | "OBS" | "P" | "PASS" | "RINT" | "SF" | "SH" | "TH" | "TP" | "UINT" | "UREV" 
 
-modifier: "/" (MODIFIERS? HIT_LOCATION? | special_modifiers ) 
+ADVANCE_MODIFIER: "NR" | "UR" | "RBI" | "TUR" | "PB" | "WP" 
+
+ERROR_MODIFIER: "E"
+modifier: (HIT_MODIFIER HIT_LOCATION? | THROW_MODIFIER base? | ERROR_MODIFIER position? | ADVANCE_MODIFIER)
 
 single: "S" (position?) 
 double: "D" (position?)
@@ -68,20 +70,27 @@ ERROR_TYPE: GENERIC_ERROR | FOUL_BALL_ERROR
 error: ERROR_TYPE (position)?
 
 NO_PLAY: "NP"
+
 WALK: "W"
 walk: WALK | (WALK "+" event)
+
 INTENTIONAL_WALK: "IW"
 intentional_walk: INTENTIONAL_WALK | (INTENTIONAL_WALK "+" event)
+
 BALK: "BK"
+
 CAUGHT_STEALING: "CS" 
 caught_stealing: CAUGHT_STEALING base ("(" position+ ")")?
+
 DEFENSIVE_INDIFFERENCE: "DI"
 OTHER_ADVANCE: "OA"
 PASSED_BALL: "PB"
 WILD_PITCH: "WP"
+
 PICKED_OFF: "PO"
 picked_off: PICKED_OFF base ("(" position+ ")")?
-PICKED_OFF_CAUGHT_STEALING: "POCS"
+
+ICKED_OFF_CAUGHT_STEALING: "POCS"
 picked_off_caught_stealing: PICKED_OFF_CAUGHT_STEALING base ("(" position+ ")")?
 
 STOLEN_BASE: "SB"

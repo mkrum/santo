@@ -16,7 +16,19 @@ class PlayTransformer(Transformer):
         location = items
         return getattr(HitLocation, location)
 
-    def MODIFIERS(self, items):
+    def HIT_MODIFIER(self, items):
+        modifier = items
+        return getattr(ModifierCode, modifier)
+
+    def THROW_MODIFIER(self, items):
+        modifier = items
+        return getattr(ModifierCode, modifier)
+
+    def ERROR_MODIFIER(self, items):
+        modifier = items
+        return getattr(ModifierCode, modifier)
+
+    def ADVANCE_MODIFIER(self, items):
         modifier = items
         return getattr(ModifierCode, modifier)
 
@@ -111,3 +123,11 @@ class PlayTransformer(Transformer):
 
     def triple_play(self, items):
         return MultiOutEvent(items)
+
+    def error(self, items):
+        location = items
+        assert items[0].value == "E"
+        return ErrorEvent(items[1])
+
+    def special_modifiers(self, items):
+        breakpoint()

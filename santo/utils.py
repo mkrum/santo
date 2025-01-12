@@ -127,6 +127,10 @@ HitLocation= Enum(
 ModifierCode = Enum(
     "ModifierCode",
     ["AP",
+     "E",
+     "UR",
+     "NR",
+     "TUR",
      "BP",
      "BG",
      "BGDP",

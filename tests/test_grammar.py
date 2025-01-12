@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Union
 
 from santo.grammar import PlayTransformer
-from santo.events import SingleEvent, OutEvent, MultiOutEvent, Item
+from santo.events import SingleEvent, OutEvent, MultiOutEvent, ErrorEvent, Item
 
 # Define the grammar
 grammar = open("grammar.lark", "r").read()
@@ -27,7 +27,7 @@ strings = [
     "64(1)3(3)9",
     "4(1)3/G4/GDP",
     "S4/G34.2-H;1-3;B-2",
-    #"S4/G34.2-H(E4/TH)(UR)(NR);1-3;B-2",
+    "S4/G34.2-H(E4/TH)(UR)(NR);1-3;B-2",
     #"1(B)16(2)63(1)/LTP/L1",
     #"T9/F9LD.2-H",
     #"E6/G6.3-H(RBI);2-3;B-1",
@@ -71,6 +71,23 @@ parsed = [
             RunnerAdvance(Base.BATTER, Base.SECOND, False, True),
         ]
     ),
+    Item(SingleEvent(fielded=Position(4)),
+        [
+            Modifier(modifier=ModifierCode.G, location=getattr(HitLocation, "34")),
+        ],
+        [
+            RunnerAdvance(Base.SECOND, Base.HOME, False, True,
+                          modifications=[
+                              Modifier(ModifierCode.E, player=Position(4)),
+                              Modifier(ModifierCode.TH),
+                              Modifier(ModifierCode.UR),
+                              Modifier(ModifierCode.NR),
+                          ]
+                          ),
+            RunnerAdvance(Base.FIRST, Base.THIRD, False, True),
+            RunnerAdvance(Base.BATTER, Base.SECOND, False, True),
+        ]
+    ),
 ]
 
 for s, p in zip(strings, parsed):
@@ -78,6 +95,7 @@ for s, p in zip(strings, parsed):
     data = transformer.transform(out)
 
     if data != p:
+        print(s)
 
         print(data.event == p.event)
         print(data.event)
@@ -88,7 +106,10 @@ for s, p in zip(strings, parsed):
         print(p.modifiers)
 
         print(data.advancements == p.advancements)
-        print(data.advancements)
-        print(p.advancements)
+        for r in data.advancements:
+            print(r)
+        print('-' * 80)
+        for r in p.advancements:
+            print(r)
 
     assert data == p
