@@ -90,7 +90,7 @@ WILD_PITCH: "WP"
 PICKED_OFF: "PO"
 picked_off: PICKED_OFF base ("(" position+ ")")?
 
-ICKED_OFF_CAUGHT_STEALING: "POCS"
+PICKED_OFF_CAUGHT_STEALING: "POCS"
 picked_off_caught_stealing: PICKED_OFF_CAUGHT_STEALING base ("(" position+ ")")?
 
 STOLEN_BASE: "SB"
